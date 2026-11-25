@@ -1,6 +1,8 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { isServerOrderUuid } from '@/lib/payment/server-order';
-import { reconcilePortOneTestWebhook } from '@/lib/payment/portone-test/webhook';
+import { reconcilePortOneTestWebhook, reconcilePortOneTestCancellation } from '@/lib/payment/portone-test/webhook';
+import { boundedId, record, UUID } from '@/lib/payment/portone-test/protocol';
+import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
 import { logSafeError } from '@/utils/log-safe-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -80,7 +82,21 @@ export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', asy
       );
     }
 
-    // 결제 완료 이벤트만 처리한다. 나머지는 할 일이 없으므로 200 으로 재시도를 멈춘다.
+    const envelope = record(verification.webhook); const cancellation = record(envelope?.data);
+    if (envelope?.type === 'Transaction.Cancelled' && typeof cancellation?.paymentId === 'string'
+      && cancellation.paymentId.startsWith('web_')) {
+      const deliveryId = request.headers.get('webhook-id');
+      if (!UUID.test(cancellation.paymentId.slice(4)) || !boundedId(cancellation.storeId)
+        || !boundedId(cancellation.transactionId) || !boundedId(cancellation.cancellationId) || !boundedId(deliveryId)) {
+        return NextResponse.json({ error: 'INVALID_CANCELLATION' }, { status: 400 });
+      }
+      const result = await reconcilePortOneTestCancellation(verification.webhook, { deliveryId,
+        bodySha256: createHash('sha256').update(rawBody, 'utf8').digest('hex') }).catch(() => 'UNAVAILABLE');
+      return result === 'ACCEPTED' || result === 'IGNORED' ? NextResponse.json({ received: true })
+        : NextResponse.json({ error: 'WEB_PAYMENT_ORDER_UNAVAILABLE' }, { status: 503 });
+    }
+
+    // 기존 결제 완료 selector와 취소 ACK 동작을 유지한다.
     const selected = selectPaidPaymentId(verification.webhook);
     if (selected.ignored) {
       return NextResponse.json({ ok: true });

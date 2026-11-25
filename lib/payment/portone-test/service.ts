@@ -2,9 +2,10 @@ import 'server-only';
 import type { ChargeContext, ChargeLease, WebPaymentChargeRepository } from '../paypal-charge/repository';
 import type { ProviderEntryGate } from '../paypal-charge/provider-entry';
 import type { PortOneTestConfig } from './config';
-import { assessPortOnePayment, buildPortOnePaidEvidence, live, UUID } from './protocol';
+import { assessPortOnePayment, buildPortOnePaidEvidence, live, record, UUID } from './protocol';
 import type { createPortOneTestBindings, createPortOneTestRepository, PortOneTestBinding } from './repository';
 import type { PortOneTestTransport } from './transport';
+import type { PortOneTestSettlementPort } from './settlement';
 
 export type PortOneTestInput = { actorUserId: string; orderId: string };
 export type PortOneTestResult = { state: 'PENDING' | 'GRANTED' | 'BLOCKED' | 'UNAVAILABLE' | 'NOT_SUBMITTED'; orderId: string }
@@ -13,7 +14,7 @@ export type PortOneTestResult = { state: 'PENDING' | 'GRANTED' | 'BLOCKED' | 'UN
 export type PortOneTestDeps = { repository: Pick<WebPaymentChargeRepository, 'getChargeContext' | 'prepareProviderContext' | 'claimCharge' | 'recordSubmissionIntent' | 'receivePurchase'>
     & Pick<ReturnType<typeof createPortOneTestRepository>, 'bindPaidObservation'>;
   bindings: ReturnType<typeof createPortOneTestBindings>; entry: ProviderEntryGate; config: PortOneTestConfig | null;
-  transport: PortOneTestTransport; nowMs: () => number };
+  transport: PortOneTestTransport; nowMs: () => number; settlement?: PortOneTestSettlementPort | null };
 type Bound = { context: ChargeContext; binding: PortOneTestBinding; config: PortOneTestConfig };
 const response = (input: PortOneTestInput, state: Exclude<PortOneTestResult['state'], 'READY'>): PortOneTestResult => ({ state, orderId: input.orderId });
 function validInput(input: PortOneTestInput) { return UUID.test(input.actorUserId) && UUID.test(input.orderId); }
@@ -39,11 +40,14 @@ async function owned(deps: PortOneTestDeps, input: PortOneTestInput): Promise<Ch
 async function loadBinding(deps: PortOneTestDeps, input: PortOneTestInput, context: ChargeContext): Promise<Bound | null> {
   if (!deps.config) return null;
   const binding = await deps.bindings.getProviderBinding(input.actorUserId, input.orderId);
-  return binding && boundMatches(context, binding, deps.config) ? { context, binding, config: deps.config } : null;
+  if (!binding || !boundMatches(context, binding, deps.config)) return null;
+  await deps.settlement?.assertScope(input, context, deps.config, binding);
+  return { context, binding, config: deps.config };
 }
 async function authorize(deps: PortOneTestDeps, input: PortOneTestInput): Promise<(Bound & { entryNotAfter: string }) | null> {
   const before = await owned(deps, input);
   if (!before || !deps.config || before.reviewRequired || !live(before.quoteExpiresAt, deps.nowMs())) return null;
+  await deps.settlement?.assertScope(input, before, deps.config);
   const prepared = await deps.repository.prepareProviderContext(input.actorUserId, input.orderId);
   if (prepared.kind !== 'PREPARED' || prepared.provider !== 'PORTONE' || prepared.environment !== 'TEST'
     || prepared.orderId !== input.orderId || prepared.quoteId !== before.quoteId || prepared.quoteHash !== before.quoteHash
@@ -91,12 +95,23 @@ export async function checkoutPortOneTest(deps: PortOneTestDeps, input: PortOneT
 }
 async function acceptPaid(deps: PortOneTestDeps, input: PortOneTestInput, bound: Bound, value: unknown, txId?: string): Promise<boolean> {
   const observed = assessPortOnePayment(value, bound.context, bound.config, txId);
-  if (!observed || observed.status !== 'PAID') return false;
+  if (!observed || observed.status !== 'PAID' || (deps.settlement && !isScopedCard(value))) return false;
+  await deps.settlement?.assertScope(input, bound.context, bound.config, bound.binding);
   const evidence = buildPortOnePaidEvidence(observed, bound.context, input.actorUserId);
   const observation = await deps.repository.bindPaidObservation(bound.context.contextId!, evidence);
   if (observation.kind !== 'RECORDED') return false;
   const intake = await deps.repository.receivePurchase(input.orderId, observation.observationId);
-  return intake.kind === 'INTAKE_PENDING';
+  if (intake.kind !== 'INTAKE_PENDING') return false;
+  if (deps.settlement) {
+    if (intake.orderId !== input.orderId || typeof intake.inboxId !== 'string' || !UUID.test(intake.inboxId)) return false;
+    await deps.settlement.publishPaid({ version: 1, type: 'paid', orderId: input.orderId,
+      paymentId: bound.context.paymentId!, inboxId: intake.inboxId });
+  }
+  return true;
+}
+function isScopedCard(value: unknown): boolean {
+  const d = record(value);
+  return record(d?.channel)?.pgProvider === 'INICIS_V2' && record(d?.method)?.type === 'PaymentMethodCard';
 }
 async function lookup(deps: PortOneTestDeps, input: PortOneTestInput, bound: Bound, txId?: string): Promise<boolean> {
   const value = await deps.transport.getPayment(bound.config, bound.context.paymentId!);
@@ -126,10 +141,12 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     if (!bound) return response(input, 'BLOCKED');
     const value = await deps.transport.getPayment(bound.config, bound.context.paymentId!);
     const observed = assessPortOnePayment(value, bound.context, bound.config, input.txId);
-    if (!observed) return response(input, 'BLOCKED');
+    if (!observed || (deps.settlement && !isScopedCard(value))) return response(input, 'BLOCKED');
     // An already-paid order with no native submission intent has no authorized manual confirmation to reconcile.
     if (observed.status === 'PAID') return response(input, 'BLOCKED');
     if (!live(bound.entryNotAfter, deps.nowMs()) || !live(bound.context.quoteExpiresAt, deps.nowMs())) return response(input, 'BLOCKED');
+    await deps.settlement?.pinTransaction(input.orderId, bound.context.paymentId!, observed.transactionId);
+    await deps.settlement?.assertScope(input, bound.context, bound.config, bound.binding);
     const claimed = await deps.repository.claimCharge(input.actorUserId, input.orderId, bound.context.rowVersion);
     if (claimed.kind === 'LOOKUP_ONLY' || (claimed.kind === 'BLOCKED' && claimed.reason === 'LEASE_ACTIVE')) {
       if (claimed.kind === 'LOOKUP_ONLY') { try { await lookup(deps, input, bound, input.txId); } catch { /* No new submit. */ } }
@@ -138,6 +155,7 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     }
     if (claimed.kind !== 'SUBMIT' || claimed.reason !== 'LEASE_CLAIMED' || claimed.lease.quoteHash !== bound.context.quoteHash
       || !live(claimed.lease.submitNotAfter, deps.nowMs())) return response(input, 'BLOCKED');
+    await deps.settlement?.assertScope(input, bound.context, bound.config, bound.binding);
     const intent = await deps.repository.recordSubmissionIntent(input.actorUserId, input.orderId, claimed.lease.rowVersion, claimed.lease);
     if (intent.kind === 'LOOKUP_ONLY') {
       try { await lookup(deps, input, bound, input.txId); } catch { /* Only independent reads can recover this intent. */ }
@@ -147,6 +165,7 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     if (intent.kind === 'BLOCKED' && intent.reason === 'LEASE_ACTIVE') return response(input, 'PENDING');
     if (intent.kind !== 'SUBMIT' || intent.reason !== 'INTENT_RECORDED'
       || !sameLease(claimed.lease, intent.lease, bound, deps.nowMs()) || !live(bound.entryNotAfter, deps.nowMs())) return response(input, 'BLOCKED');
+    await deps.settlement?.assertScope(input, bound.context, bound.config, bound.binding);
     // The native intent is committed before this single attempt. Any failure becomes lookup-only forever.
     try { await deps.transport.confirmPayment(bound.config, bound.context.paymentId!, { storeId: bound.config.store_id,
       txId: input.txId, paymentToken: input.paymentToken, totalAmount: Number(bound.context.amountMinor), currency: 'KRW', isTest: true }); }

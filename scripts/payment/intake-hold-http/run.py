@@ -61,7 +61,10 @@ TEST_ADMIN_MIGRATION = MIGRATIONS + '20261125023007_web_payment_test_admin.sql'
 TEST_ADMIN_SHA256 = 'e51c49cf95aec0b0cd824b918a2c12c62d15d316a60f1370df0b509b79a1d141'
 PORTONE_ENTRY_MIGRATION = MIGRATIONS + '20261125033657_web_payment_portone_test_entry.sql'
 PORTONE_ENTRY_SHA256 = 'f9837512a2668d1728c274c74a056c7e9d3ead509c188028052ba21e12282999'
-INTEGRATED_TAILS = ((), (TEST_ADMIN_MIGRATION,), (TEST_ADMIN_MIGRATION, PORTONE_ENTRY_MIGRATION))
+PORTONE_REFUND_MIGRATION = MIGRATIONS + '20261125072400_web_payment_portone_test_full_refund.sql'
+PORTONE_REFUND_SHA256 = 'a4e0384da11cd89c0b59afce266e885d814bf0dde70671f748201a5f54c1f0ee'
+INTEGRATED_TAILS = ((), (TEST_ADMIN_MIGRATION,), (TEST_ADMIN_MIGRATION, PORTONE_ENTRY_MIGRATION),
+                    (TEST_ADMIN_MIGRATION, PORTONE_ENTRY_MIGRATION, PORTONE_REFUND_MIGRATION))
 # Already applied on the integration baseline. Replay these before the pending web contract.
 INTEGRATED_BASELINE_PINS = {
     MIGRATIONS + '20261116000000_bonus_history_parent_index.sql':
@@ -289,7 +292,8 @@ def manifest_shape(manifest):
     integrated = (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX)
     require(paths == CONTRACT_PREFIX or any(paths == integrated + tail for tail in INTEGRATED_TAILS),
             'CONTRACT_PREFIX_MISMATCH', 'Contract prefix differs from the supported ordered profiles')
-    approved_pins = {**INTEGRATED_BASELINE_PINS, TEST_ADMIN_MIGRATION: TEST_ADMIN_SHA256, PORTONE_ENTRY_MIGRATION: PORTONE_ENTRY_SHA256}
+    approved_pins = {**INTEGRATED_BASELINE_PINS, TEST_ADMIN_MIGRATION: TEST_ADMIN_SHA256,
+                     PORTONE_ENTRY_MIGRATION: PORTONE_ENTRY_SHA256, PORTONE_REFUND_MIGRATION: PORTONE_REFUND_SHA256}
     for row in prefix:
         approved = approved_pins.get(row['path'])
         require(approved is None or approved == row['sha256'], 'SOURCE_DRIFT',
@@ -1073,6 +1077,8 @@ def setup_database(pair, modules, manifest, native, out, evidence, secrets, *, d
         evidence['installedPrefix'] += '+test-admin'
     if not smoke and PORTONE_ENTRY_MIGRATION in stages:
         evidence['installedPrefix'] += '+portone-test-entry'
+    if not smoke and PORTONE_REFUND_MIGRATION in stages:
+        evidence['installedPrefix'] += '+portone-test-full-refund'
     step('authenticator', 'create role authenticator login noinherit nosuperuser nobypassrls password '
          + sql_literal(modules['pair_fixture'].PUBLIC_PASSWORD)
          + '; grant anon,authenticated,service_role to authenticator; grant connect on database fixture to authenticator;',

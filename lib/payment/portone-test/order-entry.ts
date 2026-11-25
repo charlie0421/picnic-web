@@ -68,7 +68,10 @@ export function createPortOneTestOrderHandler(action: Action) {
       id = orderId;
       const body = post ? await parsePost(request, action) : {};
       if (!body) return respond({ error: 'INVALID_WEB_PAYMENT_ORDER' }, 400);
-      if (!isLocalPortOneDatabase(process.env.NEXT_PUBLIC_SUPABASE_URL)) return respond({ state: 'UNAVAILABLE', orderId: id }, 503);
+      if (!isLocalPortOneDatabase(process.env.NEXT_PUBLIC_SUPABASE_URL)
+        || !['development', 'test'].includes(process.env.NODE_ENV ?? '') || process.env.VERCEL || process.env.VERCEL_ENV) {
+        return respond({ state: 'UNAVAILABLE', orderId: id }, 503);
+      }
       const session = await createSupabaseServerClient();
       const { data, error } = await session.auth.getUser();
       if (error) {

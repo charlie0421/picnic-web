@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, expect, it, vi } from 'vitest';
-import { checkoutPortOneTest, confirmPortOneTest, getPortOneTestStatus } from '@/lib/payment/portone-test/service';
+import { checkoutPortOneTest, confirmPortOneTest, getPortOneTestStatus, reconcilePortOneTestPaid } from '@/lib/payment/portone-test/service';
 import { readPortOneTestConfig } from '@/lib/payment/portone-test/config';
 import { createPortOneTestTransport } from '@/lib/payment/portone-test/transport';
 
@@ -17,7 +17,8 @@ const input = { actorUserId: USER, orderId: ORDER };
 const approval = { ...input, txId: 'tx-test', paymentToken: 'private-token' };
 function payment(status = 'READY') {
   return { id: PAYMENT, transactionId: 'tx-test', version: 'V2', status, merchantId: scope.merchant_id,
-    storeId: scope.store_id, channel: { id: scope.channel_id, type: 'TEST', key: config.channelKey },
+    storeId: scope.store_id, channel: { id: scope.channel_id, type: 'TEST', key: config.channelKey, pgProvider: 'INICIS_V2' },
+    method: { type: 'PaymentMethodCard' },
     customData: JSON.stringify({ version: 'v2', order_id: ORDER }), paidAt: status === 'PAID' ? '2026-11-25T00:00:00Z' : undefined,
     amount: { total: 1000, paid: status === 'PAID' ? 1000 : 0, cancelled: 0 }, currency: 'KRW' };
 }
@@ -170,6 +171,72 @@ describe('PortOne TEST server checkout', () => {
     expect(await getPortOneTestStatus(h.deps, input)).toEqual({ state: 'PENDING', orderId: ORDER });
     expect(h.entry.authorizeProviderEntry).not.toHaveBeenCalled(); expect(h.transport.getPayment).not.toHaveBeenCalled();
     expect(h.repository.receivePurchase).not.toHaveBeenCalled();
+  });
+});
+
+describe('PortOne TEST armed settlement boundaries', () => {
+  function armed() {
+    const h = harness();
+    const settlement = { assertScope: vi.fn(async () => undefined), pinTransaction: vi.fn(async () => undefined),
+      publishPaid: vi.fn(async () => undefined) };
+    h.deps.settlement = settlement;
+    h.repository.receivePurchase.mockResolvedValue({ kind: 'INTAKE_PENDING', orderId: ORDER,
+      inboxId: '44444444-4444-4444-8444-444444444444', replayed: false, grantEligible: false } as any);
+    return { ...h, settlement };
+  }
+  it('pins matching independently observed READY before native intent and one confirmation', async () => {
+    const h = armed();
+    h.repository.claimCharge.mockImplementation(async () => {
+      expect(h.settlement.pinTransaction).toHaveBeenCalledExactlyOnceWith(ORDER, PAYMENT, 'tx-test');
+      return { kind: 'SUBMIT', reason: 'LEASE_CLAIMED', lease: h.lease };
+    });
+    expect((await confirmPortOneTest(h.deps, approval)).state).toBe('PENDING');
+    expect(h.transport.confirmPayment).toHaveBeenCalledTimes(1);
+  });
+  it('blocks scope or transaction persistence failure before claim and provider confirmation', async () => {
+    for (const method of ['assertScope', 'pinTransaction'] as const) {
+      const h = armed(); h.settlement[method].mockRejectedValue(new Error('PORTONE_TEST_UNAVAILABLE'));
+      expect((await confirmPortOneTest(h.deps, approval)).state).toBe('UNAVAILABLE');
+      expect(h.repository.claimCharge).not.toHaveBeenCalled(); expect(h.transport.confirmPayment).not.toHaveBeenCalled();
+    }
+  });
+  it('checks the armed order before provider preparation or checkout release', async () => {
+    const h = armed(); h.settlement.assertScope.mockRejectedValue(new Error('PORTONE_TEST_UNAVAILABLE'));
+    expect((await checkoutPortOneTest(h.deps, input)).state).toBe('UNAVAILABLE');
+    expect(h.repository.prepareProviderContext).not.toHaveBeenCalled();
+  });
+  it('publishes only the actual returned inbox after independent binding and native intake', async () => {
+    const h = armed(); h.transport.getPayment.mockResolvedValueOnce(payment()).mockResolvedValueOnce(payment('PAID'));
+    h.settlement.publishPaid.mockImplementation(async () => {
+      expect(h.repository.bindPaidObservation).toHaveBeenCalledTimes(1);
+      expect(h.repository.receivePurchase).toHaveBeenCalledExactlyOnceWith(ORDER, CONTEXT);
+    });
+    await confirmPortOneTest(h.deps, approval);
+    expect(h.settlement.publishPaid).toHaveBeenCalledExactlyOnceWith({ version: 1, type: 'paid', orderId: ORDER,
+      paymentId: PAYMENT, inboxId: '44444444-4444-4444-8444-444444444444' });
+  });
+  it('retries publication after ACK loss without another provider confirmation, including GRANTED replay', async () => {
+    const h = armed(); h.context.submissionIntentRecorded = true; h.transport.getPayment.mockResolvedValue(payment('PAID'));
+    h.settlement.publishPaid.mockRejectedValueOnce(new Error('PORTONE_TEST_UNAVAILABLE'));
+    await expect(reconcilePortOneTestPaid(h.deps, input, PAYMENT)).rejects.toThrow('PORTONE_TEST_UNAVAILABLE');
+    h.context.settlementState = 'GRANTED';
+    expect(await reconcilePortOneTestPaid(h.deps, input, PAYMENT)).toBe(true);
+    expect(h.settlement.publishPaid).toHaveBeenCalledTimes(2);
+    expect(h.transport.confirmPayment).not.toHaveBeenCalled();
+  });
+  it.each([{ kind: 'NOT_COMPLETED' }, { kind: 'REVIEW_REQUIRED' }, { kind: 'INTAKE_PENDING', inboxId: undefined }])('never publishes a missing or unaccepted inbox %j', async intake => {
+    const h = armed(); h.context.submissionIntentRecorded = true; h.transport.getPayment.mockResolvedValue(payment('PAID'));
+    h.repository.receivePurchase.mockResolvedValue(intake as any);
+    expect(await reconcilePortOneTestPaid(h.deps, input, PAYMENT)).toBe(false);
+    expect(h.settlement.publishPaid).not.toHaveBeenCalled();
+  });
+  it('delayed PAID after an earlier nonpaid lookup publishes through the same native intake', async () => {
+    const h = armed(); h.context.submissionIntentRecorded = true;
+    expect(await reconcilePortOneTestPaid(h.deps, input, PAYMENT)).toBe(false);
+    h.transport.getPayment.mockResolvedValue(payment('PAID'));
+    expect(await reconcilePortOneTestPaid(h.deps, input, PAYMENT)).toBe(true);
+    expect(h.settlement.publishPaid).toHaveBeenCalledTimes(1);
+    expect(h.transport.confirmPayment).not.toHaveBeenCalled();
   });
 });
 

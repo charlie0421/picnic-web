@@ -565,6 +565,33 @@ class ManifestCase(SubjectCase):
 
 
 
+class InstalledPrefixTests(SubjectCase):
+    def test_refund_receipt_identifies_the_applied_tail_without_changing_smoke(self):
+        """Break: a completed refund installation reports only the earlier entry stage."""
+        refund = MIGRATION_DIR + "20261125072400_web_payment_portone_test_full_refund.sql"
+        prefix = (*subject.INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX,
+                  MIGRATION_DIR + "20261125023007_web_payment_test_admin.sql",
+                  MIGRATION_DIR + "20261125033657_web_payment_portone_test_entry.sql", refund)
+        data = b"pinned installation fixture"
+        manifest = {"contractPrefix": [{"path": name, "sha256": sha(data)} for name in prefix],
+                    "dependencySources": [{"path": name, "sha256": sha(data)}
+                                          for name in (subject.NATIVE_BOOTSTRAP, subject.NATIVE_CONTROL)]}
+        modules = {"pair_fixture": types.SimpleNamespace(PUBLIC_PASSWORD="unit-placeholder")}
+        for smoke, expected in ((False, "main5+current10+M1-M5+test-admin+portone-test-entry+portone-test-full-refund"),
+                                (True, "main5+current10")):
+            with self.subTest(smoke=smoke):
+                evidence = {}
+                with patch.object(subject, "read_source", return_value=data), \
+                     patch.object(subject, "integrated_vote_prerequisites", return_value="unit-prerequisites"), \
+                     patch.object(subject, "install_sql", return_value=None):
+                    result = subject.setup_database(None, modules, manifest,
+                                                    {"definitions": "unit-definitions", "queueSql": "unit-queue"},
+                                                    None, evidence, (), db_root=Path("/unit"), smoke=smoke)
+                self.assertEqual(result, {})
+                self.assertEqual(evidence["installedPrefix"], expected)
+                self.assertEqual(refund in evidence["appliedMigrations"], not smoke)
+
+
 class IntegratedBaselineTests(ManifestCase):
     def setUp(self):
         super().setUp()
@@ -618,6 +645,38 @@ class IntegratedBaselineTests(ManifestCase):
         self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
         self.seal()
         self.assertEqual(self.verify()["contractPrefix"][:5], self.baseline)
+
+    def test_portone_full_refund_requires_exact_predecessors_and_approved_bytes(self):
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
+        names = (
+            MIGRATION_DIR + "20261125023007_web_payment_test_admin.sql",
+            MIGRATION_DIR + "20261125033657_web_payment_portone_test_entry.sql",
+            MIGRATION_DIR + "20261125072400_web_payment_portone_test_full_refund.sql",
+        )
+        pins = {name: ("approved fixture " + name).encode() for name in names}
+        for name, data in pins.items():
+            self.put(self.db, name, data)
+            self.git.blobs[str(self.db)][name] = data
+            self.manifest["contractPrefix"].append({"path": name, "sha256": sha(data)})
+        self.seal()
+        with patch.object(subject, "TEST_ADMIN_SHA256", sha(pins[names[0]])), \
+             patch.object(subject, "PORTONE_ENTRY_SHA256", sha(pins[names[1]])), \
+             patch.object(subject, "PORTONE_REFUND_SHA256", sha(pins[names[2]]), create=True):
+            self.assertEqual(self.verify()["contractPrefix"][-1]["path"], names[2])
+            for missing in names[:2]:
+                original = copy.deepcopy(self.manifest["contractPrefix"])
+                self.manifest["contractPrefix"] = [row for row in original if row["path"] != missing]
+                (self.db / missing).unlink()
+                self.seal()
+                self.refuses(Code.PREFIX, self.verify)
+                self.put(self.db, missing, pins[missing])
+                self.manifest["contractPrefix"] = original
+                self.seal()
+            self.put(self.db, names[2], b"unapproved replacement")
+            self.git.blobs[str(self.db)][names[2]] = b"unapproved replacement"
+            self.manifest["contractPrefix"][-1]["sha256"] = sha(b"unapproved replacement")
+            self.seal()
+            self.refuses(Code.SOURCE, self.verify)
 
     def test_old_manifest_cannot_skip_main_migrations_on_integrated_checkout(self):
         self.refuses(Code.PREFIX, self.verify)
