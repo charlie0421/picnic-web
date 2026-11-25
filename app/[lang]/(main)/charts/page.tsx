@@ -24,5 +24,5 @@ export default async function ChartsPage({ params }: { params: Promise<{ lang: s
   const { lang } = await params;
   const t = await getTranslations(lang as Language);
   const copy = Object.fromEntries(chartCopyKeys.map(key => [key, t(`kpop_dashboard.${key}`)])) as Record<typeof chartCopyKeys[number], string>;
-  return <ChartDashboard locale={lang} copy={copy} />;
+  return <ChartDashboard locale={lang} copy={copy} syntheticPreview={process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic'} />;
 }

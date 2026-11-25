@@ -68,6 +68,12 @@ describe('public chart experience', () => {
     expect(screen.getByText(copy.profileCountryNote)).toBeInTheDocument();
     expect(screen.queryByText(copy.countryNote)).toBeNull();
   });
+  it('marks the dashboard itself when a deployment serves synthetic votes', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));
+    render(<ChartDashboard locale="en" copy={copy} syntheticPreview />);
+    await screen.findByText('Test Artist');
+    expect(screen.getByRole('note', {name: copy.sampleBadge})).toHaveTextContent(copy.sampleBadge);
+  });
   it('always offers a same-origin localized inquiry route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));
     render(<ChartDashboard locale="ko" copy={copy} />);

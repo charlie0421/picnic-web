@@ -10,7 +10,7 @@ import styles from './charts.module.css';
 type Result = { key: string; state: 'loading' | 'error' | 'loaded'; snapshot?: ChartSnapshot };
 const metrics: ChartMetric[] = ['voters', 'votes', 'purchaser_voters'];
 
-export default function ChartDashboard({ locale, copy: c }: { locale: string; copy: ChartCopy }) {
+export default function ChartDashboard({ locale, copy: c, syntheticPreview = false }: { locale: string; copy: ChartCopy; syntheticPreview?: boolean }) {
   const [filters, setFilters] = useState<ChartFilters>(DEFAULT_CHART_FILTERS);
   const [rankingOrder, setRankingOrder] = useState<'metric' | 'growth'>('metric');
   const [retry, setRetry] = useState(0);
@@ -86,6 +86,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
         <section className={styles.hero}>
           <div className={styles.heroOrbit} aria-hidden="true"><Globe2 size={132} strokeWidth={0.65} /></div>
           <div className={styles.eyebrow}><span className={styles.heroMark}>PICNIC</span> FAN INTELLIGENCE <span className={styles.free}>{c.free}</span></div>
+          {syntheticPreview && <p role="note" aria-label={c.sampleBadge} className={styles.demoNotice}>{c.sampleBadge}</p>}
           <h1 id={titleId}>{c.title}</h1>
           <p>{c.subtitle}</p>
           <div className={styles.publication}><span>{c.published}</span><strong>{snapshot?.published_at ? `${formatDate(snapshot.published_at)} UTC` : c.unpublished}</strong></div>
