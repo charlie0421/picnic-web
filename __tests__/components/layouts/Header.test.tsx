@@ -119,6 +119,13 @@ describe('Header', () => {
     expect(screen.queryByText('MYPAGE')).toBeNull();
   });
 
+  it('단일 포털에서도 Beta 옆 공개 대시보드 링크를 표시한다', () => {
+    render(<Header />);
+    const link = screen.getByRole('link', { name: /KPOP 대시보드/ });
+    expect(link).toHaveAttribute('href', '/ko/charts');
+    expect(screen.getByText('Beta').nextElementSibling).toBe(link);
+  });
+
   it('renders language selector', () => {
     render(<Header />);
     expect(screen.getByTestId('language-selector')).toBeInTheDocument();

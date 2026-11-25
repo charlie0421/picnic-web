@@ -7,6 +7,8 @@
 
 import fs from 'fs';
 import path from 'path';
+import { chartCopyKeys } from '../lib/charts/copy';
+import { businessCopyKeys } from '../lib/charts/business-copy';
 
 type LangFile = {
   lang: string;
@@ -103,6 +105,8 @@ function extractKeysFromConfigJson(filePath: string): string[] {
 // 값의 도메인이 유한한 템플릿은 여기에 등록해 `${…}` 를 도메인 값으로 치환한 키로 펼쳐 정적 키처럼 대조한다.
 // 등록되지 않은 템플릿은 대조할 수 없어 누락이 숨으므로 i18n:check 를 실패시킨다 — 새 동적 키를 쓰면 도메인을 등록한다.
 export const DYNAMIC_KEY_DOMAINS: Readonly<Record<string, readonly string[]>> = {
+  'kpop_dashboard.${key}': chartCopyKeys,
+  'kpop_business.${key}': businessCopyKeys,
   // components/client/vote/list/vote-card-utils.ts getCategoryLabel — CATEGORY_COLORS·CATEGORY_LABEL_FALLBACK 의 값
   'label_vote_${category}': ['birthday', 'debut', 'accumulated', 'special', 'event', 'weekly'],
   // 같은 파일 getSubCategoryLabel — SUB_CATEGORY_COLORS·SUBCATEGORY_LABEL_FALLBACK 의 값

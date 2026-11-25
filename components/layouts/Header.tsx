@@ -13,6 +13,7 @@ import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileIma
 import LanguageSelector from './LanguageSelector';
 import { Menu, Settings, Vote, Star, ChevronRight, Bell } from 'lucide-react';
 import { NotificationInboxService } from '@/lib/data-fetching/client/notification-service';
+import ChartMenuLink from '@/components/charts/ChartMenuLink';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -150,6 +151,7 @@ const Header: React.FC = () => {
             <span className='flex-shrink-0 inline-flex items-center rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white'>
               Beta
             </span>
+            <ChartMenuLink />
             {portalMenuItems.length > 1 && (
             <div className='flex-1 relative'>
   <div ref={menuContainerRef} className='overflow-x-auto scrollbar-hide scroll-smooth'>

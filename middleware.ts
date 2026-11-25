@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { STATIC_ASSET_PATH, decideLocaleRoute } from './lib/i18n/locale-routing';
+import { STATIC_ASSET_PATH, decideLocaleRoute, resolvePreferredLanguage } from './lib/i18n/locale-routing';
+import { chartHostPath } from './lib/charts/contract';
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
@@ -23,6 +24,17 @@ function buildForwardedRequestHeaders(req: NextRequest): Headers {
 }
 
 export async function middleware(req: NextRequest) {
+  const chartPath = chartHostPath(req.headers.get('host'), req.nextUrl.pathname, resolvePreferredLanguage({
+    referer: req.headers.get('referer'), host: req.headers.get('host'),
+    cookieLocale: req.cookies.get('locale')?.value ?? null, acceptLanguage: req.headers.get('accept-language'),
+  }));
+  if (chartPath) {
+    const url = req.nextUrl.clone();
+    url.pathname = chartPath;
+    const redirect = NextResponse.redirect(url, 307);
+    redirect.headers.set('Cache-Control', 'private, no-store');
+    return redirect;
+  }
   // 언어 접두어 판정을 맨 앞에 둔다(인앱 안내·Supabase·getClaims 보다 먼저).
   // 리다이렉트는 Supabase 가 쿠키를 쓰기 전에 나가므로 옮길 쿠키가 없고, 세션 갱신과 탈퇴 차단은
   // 목적지 요청에서 middleware 가 다시 돌 때 적용된다. 규칙은 lib/i18n/locale-routing.ts 에 있다.
