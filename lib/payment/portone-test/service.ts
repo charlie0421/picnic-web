@@ -2,6 +2,7 @@ import 'server-only';
 import type { ChargeContext, ChargeLease, WebPaymentChargeRepository } from '../paypal-charge/repository';
 import type { ProviderEntryGate } from '../paypal-charge/provider-entry';
 import type { PortOneTestConfig } from './config';
+import { buildPortOneMethodEvidence, readPaidPaymentMethod } from './payment-method';
 import { assessPortOnePayment, buildPortOnePaidEvidence, live, record, UUID } from './protocol';
 import type { createPortOneTestBindings, createPortOneTestRepository, PortOneTestBinding } from './repository';
 import type { PortOneTestTransport } from './transport';
@@ -15,7 +16,7 @@ export type PortOneTestDeps = { repository: Pick<WebPaymentChargeRepository, 'ge
     & Pick<ReturnType<typeof createPortOneTestRepository>, 'bindPaidObservation'>;
   bindings: ReturnType<typeof createPortOneTestBindings>; entry: ProviderEntryGate; config: PortOneTestConfig | null;
   transport: PortOneTestTransport; nowMs: () => number; settlement?: PortOneTestSettlementPort | null };
-type Bound = { context: ChargeContext; binding: PortOneTestBinding; config: PortOneTestConfig };
+type Bound = { context: ChargeContext; binding: PortOneTestBinding; config: PortOneTestConfig; hosted: boolean };
 const response = (input: PortOneTestInput, state: Exclude<PortOneTestResult['state'], 'READY'>): PortOneTestResult => ({ state, orderId: input.orderId });
 function validInput(input: PortOneTestInput) { return UUID.test(input.actorUserId) && UUID.test(input.orderId); }
 function validContext(context: ChargeContext, input: PortOneTestInput) {
@@ -37,12 +38,22 @@ async function owned(deps: PortOneTestDeps, input: PortOneTestInput): Promise<Ch
   const result = await deps.repository.getChargeContext(input.actorUserId, input.orderId);
   return result.kind === 'FOUND' && validContext(result.context, input) ? result.context : null;
 }
+// The repository always names the contract. Only doubles built before the v2 reader omit it; they are legacy.
+function verificationContract(binding: PortOneTestBinding): 'LEGACY' | 'HOSTED' | null {
+  const verification: unknown = (binding as { verification?: unknown }).verification;
+  if (verification === undefined) return 'LEGACY';
+  const contract = record(verification)?.contract;
+  return contract === 'LEGACY' || contract === 'HOSTED' ? contract : null;
+}
 async function loadBinding(deps: PortOneTestDeps, input: PortOneTestInput, context: ChargeContext): Promise<Bound | null> {
   if (!deps.config) return null;
   const binding = await deps.bindings.getProviderBinding(input.actorUserId, input.orderId);
   if (!binding || !boundMatches(context, binding, deps.config)) return null;
+  const contract = verificationContract(binding);
+  // The armed settlement drill is a legacy card scope. Hosted settlement is not built.
+  if (contract === null || (contract === 'HOSTED' && deps.settlement)) return null;
   await deps.settlement?.assertScope(input, context, deps.config, binding);
-  return { context, binding, config: deps.config };
+  return { context, binding, config: deps.config, hosted: contract === 'HOSTED' };
 }
 async function authorize(deps: PortOneTestDeps, input: PortOneTestInput): Promise<(Bound & { entryNotAfter: string }) | null> {
   const before = await owned(deps, input);
@@ -57,7 +68,8 @@ async function authorize(deps: PortOneTestDeps, input: PortOneTestInput): Promis
   if (!context || context.contextId !== prepared.contextId || context.paymentId !== prepared.paymentId
     || context.quoteHash !== prepared.quoteHash || context.quoteId !== prepared.quoteId) return null;
   const bound = await loadBinding(deps, input, context);
-  if (!bound || Object.keys(prepared.scope).length !== 4
+  // Hosted checkout launch and manual confirmation are not built. Never release SDK settings or confirm for them.
+  if (!bound || bound.hosted || Object.keys(prepared.scope).length !== 4
     || Object.entries(bound.binding.scope).some(([key, value]) => prepared.scope[key] !== value)) return null;
   const entry = await deps.entry.authorizeProviderEntry({ actorUserId: input.actorUserId, orderId: input.orderId,
     contextId: prepared.contextId, createRequestKey: prepared.createRequestKey, bindingHash: bound.binding.bindingHash });
@@ -95,7 +107,9 @@ export async function checkoutPortOneTest(deps: PortOneTestDeps, input: PortOneT
 }
 async function acceptPaid(deps: PortOneTestDeps, input: PortOneTestInput, bound: Bound, value: unknown, txId?: string): Promise<boolean> {
   const observed = assessPortOnePayment(value, bound.context, bound.config, txId);
-  if (!observed || observed.status !== 'PAID' || (deps.settlement && !isScopedCard(value))) return false;
+  if (!observed || observed.status !== 'PAID') return false;
+  if (bound.hosted) { await recordHostedPaid(deps, input, bound, value, observed); return false; }
+  if (deps.settlement && !isScopedCard(value)) return false;
   await deps.settlement?.assertScope(input, bound.context, bound.config, bound.binding);
   const evidence = buildPortOnePaidEvidence(observed, bound.context, input.actorUserId);
   const observation = await deps.repository.bindPaidObservation(bound.context.contextId!, evidence);
@@ -108,6 +122,20 @@ async function acceptPaid(deps: PortOneTestDeps, input: PortOneTestInput, bound:
       paymentId: bound.context.paymentId!, inboxId: intake.inboxId });
   }
   return true;
+}
+// Hosted intake and settlement are not built, so this records server-verified facts and never opens financial authority.
+// 1. The financial base keeps the legacy key and bytes. A changed paidAt or other financial fact conflicts on that key,
+//    whatever method metadata a later read adds. A base review stops here.
+// 2. Recognized method metadata follows on its own deterministic key. A partial ACK recovers by replaying both keys.
+//    Omitted or unrecognized metadata stays unknown and is never inferred as CARD. The DB decides method conflicts.
+async function recordHostedPaid(deps: PortOneTestDeps, input: PortOneTestInput, bound: Bound, value: unknown,
+  observed: NonNullable<ReturnType<typeof assessPortOnePayment>>): Promise<void> {
+  const base = buildPortOnePaidEvidence(observed, bound.context, input.actorUserId);
+  const recorded = await deps.repository.bindPaidObservation(bound.context.contextId!, base);
+  if (recorded.kind !== 'RECORDED') return;
+  const method = readPaidPaymentMethod(value);
+  if (!method) return;
+  await deps.repository.bindPaidObservation(bound.context.contextId!, buildPortOneMethodEvidence(base, method));
 }
 function isScopedCard(value: unknown): boolean {
   const d = record(value);

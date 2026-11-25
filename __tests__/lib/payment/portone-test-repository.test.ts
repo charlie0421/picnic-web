@@ -5,9 +5,11 @@ import { createPortOneTestBindings } from '@/lib/payment/portone-test/repository
 
 const ORDER = '22222222-2222-4222-8222-222222222222';
 const USER = '11111111-1111-4111-8111-111111111111';
+// A database before the v2 rollout has no binding v2 function, so the adapter reads the v1 service.
 function client(data: unknown) {
-  const rpc = vi.fn(() => ({ retry: (retry: boolean) => { expect(retry).toBe(false); return {
-    abortSignal: async () => ({ data, error: null, status: 200 }),
+  const rpc = vi.fn((name: string) => ({ retry: (retry: boolean) => { expect(retry).toBe(false); return {
+    abortSignal: async () => (name === 'get_web_payment_provider_binding_v2'
+      ? { data: null, error: { code: 'PGRST202', message: 'missing' }, status: 404 } : { data, error: null, status: 200 }),
   }; } }));
   return { rpc };
 }
@@ -23,10 +25,13 @@ describe('PortOne native RPC adapter', () => {
     }
   });
   it('rejects PAYPAL and unexpected PORTONE application data from the binding RPC', async () => {
+    // The v1 fallback must prove the canonical legacy document. These are the primary DB legacy vector values.
     const wire = { contract_version: 'web-payment-provider-binding.v1', outcome: 'FOUND', charge_authority: false,
       order_id: ORDER, context_id: USER, quote_id: ORDER, quote_hash: 'a'.repeat(64), provider: 'PORTONE', environment: 'TEST',
-      billing_country: 'KR', scope: { merchant_id: 'm', store_id: 's', channel_id: 'c', channel_type: 'TEST' },
-      binding_id: USER, binding_version: '1', binding_hash: 'b'.repeat(64), credential_ref: 'portone-test', expected_application: null };
+      billing_country: 'KR', scope: { merchant_id: 'fixture-portone-merchant', store_id: 'fixture-store', channel_id: 'fixture-channel', channel_type: 'TEST' },
+      binding_id: 'd1ca0003-0000-4000-8000-000000000002', binding_version: '1',
+      binding_hash: '3865ac5115fa1c9b688d240aefc6f1d9bcecea58c2e7d5ada36fd7df1445d52f',
+      credential_ref: 'fixture.durability.portone', expected_application: null };
     expect(await createPortOneTestBindings(client(wire) as any).getProviderBinding(USER, ORDER)).toMatchObject({ provider: 'PORTONE', environment: 'TEST' });
     for (const changed of [{ provider: 'PAYPAL' }, { expected_application: {} }, { environment: 'LIVE' }]) {
       await expect(createPortOneTestBindings(client({ ...wire, ...changed }) as any).getProviderBinding(USER, ORDER)).rejects.toThrow('WEB_PAYMENT_CHARGE_UNAVAILABLE');
