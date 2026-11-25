@@ -85,14 +85,29 @@ describe('middleware and a stale session on the OAuth callback', () => {
     expect(deletedCookies(res)).toEqual(expect.arrayContaining([STORAGE_KEY, VERIFIER_KEY]));
   });
 
-  it.each(['/auth/callback/google', '/auth/callback/kakao', '/auth/callback'])(
-    'keeps the PKCE verifier on %s and does not try to refresh the stale session',
-    async (path) => {
-      const res = await middleware(request(`${path}?code=oauth-code`));
+  it.each([
+    '/auth/callback/google?code=oauth-code',
+    '/auth/callback/kakao?code=oauth-code&returnTo=%2Fko%2Fvote',
+    '/auth/callback/apple?code=oauth-code',
+    '/auth/callback/google/?code=oauth-code',
+    '/auth/callback?code=oauth-code',
+  ])('passes %s through untouched: no refresh, no cookie change, no redirect', async (path) => {
+    const res = await middleware(request(path));
 
-      expect(refreshCalls(fetchMock)).toHaveLength(0);
-      expect(deletedCookies(res)).not.toContain(VERIFIER_KEY);
-      expect(res.headers.getSetCookie()).toEqual([]);
+    expect(refreshCalls(fetchMock)).toHaveLength(0);
+    expect(deletedCookies(res)).not.toContain(VERIFIER_KEY);
+    expect(res.headers.getSetCookie()).toEqual([]);
+    expect(res.status).toBe(200);
+    expect(res.headers.get('location')).toBeNull();
+    expect(res.headers.get('x-middleware-next')).toBe('1');
+  });
+
+  it.each(['/auth/callback/google/extra', '/auth/callbacks/google', '/ko/auth/callback/google'])(
+    'does not extend the bypass to %s',
+    async (path) => {
+      const res = await middleware(request(path));
+      const bypassed = refreshCalls(fetchMock).length === 0 && res.headers.get('x-middleware-next') === '1';
+      expect(bypassed).toBe(false);
     },
   );
 });
