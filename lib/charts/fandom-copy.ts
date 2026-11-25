@@ -29,6 +29,8 @@ export const fandomCopyKeys = [
     'shared',
     'forbidden',
     'publishedWindow',
+    'completedWeek',
+    'assignedWeek',
     'daily',
     'seconds',
     'noMatches',

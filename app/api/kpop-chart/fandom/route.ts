@@ -1,14 +1,14 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { fandomParams, parseSubjects, parseFandomReport } from '@/lib/charts/fandom';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
-import { sampleFandom } from '@/lib/charts/fandom-preview';
+import { isChartPreviewEnabled, sampleFandom } from '@/lib/charts/fandom-preview';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'private, no-store', Vary: 'Cookie, Authorization' };
 export async function GET(request: NextRequest) {
     const params = fandomParams(request.nextUrl.searchParams);
     if (!params) return NextResponse.json({ error: 'invalid_filters' }, { status: 400, headers });
-    if (process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic') {
+    if (isChartPreviewEnabled()) {
         return NextResponse.json(sampleFandom(params), {
             headers: { ...headers, 'X-Picnic-Data': 'synthetic' },
         });
@@ -63,11 +63,12 @@ export async function GET(request: NextRequest) {
         }
         const raw: unknown = await response.json();
         if (params.type === 'search') return NextResponse.json(parseSubjects(raw), { headers });
+        if (params.type === 'campaigns' && !Array.isArray(raw)) throw new Error('Invalid campaign list');
         if (params.type === 'campaigns')
             return NextResponse.json(parseFandomReport({ status: 'ready', campaigns: raw }).campaigns, {
                 headers,
             });
-        const result = parseFandomReport(raw),
+        const result = parseFandomReport(raw, params.filters.scope),
             f = params.filters;
         if (result.subject && (result.subject.id !== String(f.id) || result.subject.entity !== f.entity))
             throw new Error('Mismatched target');

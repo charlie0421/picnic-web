@@ -27,7 +27,11 @@ const groups: {
     keys: FandomMetric[];
     icon: typeof Users;
 }[] = [
-    { title: 'audience', keys: ['fans', 'voters', 'votes', 'returning_pct'], icon: Users },
+    {
+        title: 'audience',
+        keys: ['fans', 'voters', 'votes', 'purchaser_voters', 'returning_pct'],
+        icon: Users,
+    },
     {
         title: 'adAudience',
         keys: ['viewers', 'watch_seconds', 'avg_watch_seconds', 'ad_conversion_pct'],
@@ -46,6 +50,11 @@ function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) 
         if (!query) return;
         let active = true;
         const controller = new AbortController();
+        const refreshOnReturn = () => {
+            setState({ key: '' });
+            if (document.visibilityState === 'visible') setRevision((v) => v + 1);
+        };
+        document.addEventListener('visibilitychange', refreshOnReturn);
         const timer = setTimeout(async () => {
             try {
                 const r = await fetch('/api/kpop-chart/fandom?' + query, {
@@ -54,19 +63,21 @@ function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) 
                     credentials: 'same-origin',
                 });
                 if (!r.ok) {
-                    if (active) setState({ key: query, error: r.status });
+                    if (active && document.visibilityState !== 'hidden')
+                        setState({ key: query, error: r.status });
                     return;
                 }
                 const data = parse(await r.json());
-                if (active) setState({ key: query, data });
+                if (active && document.visibilityState !== 'hidden') setState({ key: query, data });
             } catch {
-                if (active) setState({ key: query, error: 503 });
+                if (active && document.visibilityState !== 'hidden') setState({ key: query, error: 503 });
             }
         }, delay);
         return () => {
             active = false;
             clearTimeout(timer);
             controller.abort();
+            document.removeEventListener('visibilitychange', refreshOnReturn);
         };
     }, [query, revision, parse, delay]);
     return {
@@ -79,6 +90,7 @@ function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) 
     };
 }
 function campaignsFrom(value: unknown): Campaign[] {
+    if (!Array.isArray(value)) throw new Error('Invalid campaign list');
     return parseFandomReport({ status: 'ready', campaigns: value }).campaigns;
 }
 function label(names: Record<string, string> | null | undefined, locale: string) {
@@ -120,7 +132,8 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
             ? c[v?.status === 'suppressed' ? 'suppressed' : 'unavailable']
             : number.format(v.value) +
               (k?.endsWith('_pct') ? '%' : k?.endsWith('seconds') ? ' ' + f.seconds : '');
-    const metric = (key: FandomMetric) => (key === 'votes' || key === 'voters' ? c[key] : f[key]);
+    const metric = (key: FandomMetric) =>
+        key === 'votes' || key === 'voters' || key === 'purchaser_voters' ? c[key] : f[key];
     const navigate = (changes: Record<string, string | null>) => {
         const next = new URLSearchParams(query);
         Object.entries(changes).forEach(([key, value]) => {
@@ -312,7 +325,10 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                             {report.error || campaigns.error ? (
                                 <div className={styles.notice}>
                                     {report.error === 403 || campaigns.error === 403 ? (
-                                        f.forbidden
+                                        <>
+                                            {company ? f.forbidden : c.error} ·{' '}
+                                            <a href={`/${locale}/charts/business`}>{c.b2bAction}</a>
+                                        </>
                                     ) : (
                                         <button
                                             onClick={() => {
@@ -326,11 +342,16 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                 </div>
                             ) : company && !selected.campaign ? (
                                 <p className={styles.notice}>
-                                    {campaigns.data?.length
-                                        ? f.choose
-                                        : campaigns.data
-                                          ? f.forbidden
-                                          : c.loading}
+                                    {campaigns.data?.length ? (
+                                        f.choose
+                                    ) : campaigns.data ? (
+                                        <>
+                                            {f.forbidden} ·{' '}
+                                            <a href={'/' + locale + '/charts/business'}>{c.b2bAction}</a>
+                                        </>
+                                    ) : (
+                                        c.loading
+                                    )}
                                 </p>
                             ) : !data ? (
                                 <p className={styles.notice}>{c.loading}</p>
@@ -342,6 +363,14 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                         </div>
                         {data?.status === 'ready' && (
                             <>
+                                {!preview &&
+                                    (!data.as_of ||
+                                        Date.now() - Date.parse(data.as_of) >
+                                            (company ? 8 : 2) * 86400000) && (
+                                        <p role="status" className={styles.notice}>
+                                            {c.stale}
+                                        </p>
+                                    )}
                                 <div className={styles.meta}>
                                     <p>
                                         {data.country_basis === 'profile_at_publication'
@@ -353,6 +382,7 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                             {c.published} ·{' '}
                                             {new Intl.DateTimeFormat(locale, {
                                                 dateStyle: 'medium',
+                                                timeStyle: 'short',
                                                 timeZone: 'UTC',
                                             }).format(new Date(data.as_of))}{' '}
                                             UTC
@@ -366,20 +396,31 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                                 <g.icon size={20} />
                                                 {f[g.title]}
                                             </h3>
+                                            {g.title === 'adAudience' && data.activity_period && (
+                                                <p>
+                                                    {f.assignedWeek} · {data.activity_period.start} –{' '}
+                                                    {new Date(Date.parse(data.activity_period.end) - 86400000)
+                                                        .toISOString()
+                                                        .slice(0, 10)}{' '}
+                                                    UTC
+                                                </p>
+                                            )}
                                             <dl>
-                                                {g.keys.map((k) => (
-                                                    <div key={k}>
-                                                        <dt>{metric(k)}</dt>
-                                                        <dd
-                                                            data-available={
-                                                                data.metrics[k].status === 'available'
-                                                            }
-                                                        >
-                                                            {cell(data.metrics[k], k)}
-                                                        </dd>
-                                                    </div>
-                                                ))}
-                                                {g.title === 'paidImpact' && (
+                                                {g.keys
+                                                    .filter((k) => company || k !== 'paid_units')
+                                                    .map((k) => (
+                                                        <div key={k}>
+                                                            <dt>{metric(k)}</dt>
+                                                            <dd
+                                                                data-available={
+                                                                    data.metrics[k].status === 'available'
+                                                                }
+                                                            >
+                                                                {cell(data.metrics[k], k)}
+                                                            </dd>
+                                                        </div>
+                                                    ))}
+                                                {company && g.title === 'paidImpact' && (
                                                     <div>
                                                         <dt>{f.net}</dt>
                                                         <dd>
@@ -400,11 +441,13 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                             {f.history}
                                         </h3>
                                         <p>
-                                            {data.series_basis === 'published_window'
-                                                ? f.publishedWindow
-                                                : data.series_basis === 'utc_daily'
-                                                  ? f.daily
-                                                  : c.periodNote}
+                                            {data.series_basis === 'completed_week'
+                                                ? f.completedWeek
+                                                : data.series_basis === 'published_window'
+                                                  ? f.publishedWindow
+                                                  : data.series_basis === 'utc_daily'
+                                                    ? f.daily
+                                                    : c.periodNote}
                                         </p>
                                         <Series points={dates} label={c.voters} empty={c.noTrend} />
                                         {dates.length > 0 && (
@@ -517,8 +560,8 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                                             <th>{c.country}</th>
                                                             <th>{c.voters}</th>
                                                             <th>{f.buyers}</th>
-                                                            <th>{f.paid_units}</th>
-                                                            <th>{f.net}</th>
+                                                            {company && <th>{f.paid_units}</th>}
+                                                            {company && <th>{f.net}</th>}
                                                         </tr>
                                                     </thead>
                                                     <tbody>
@@ -527,15 +570,19 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                                                 <th>{market(m.country)}</th>
                                                                 <td>{cell(m.voters)}</td>
                                                                 <td>{cell(m.buyers)}</td>
-                                                                <td>{cell(m.paid_units)}</td>
-                                                                <td>
-                                                                    {m.net_amounts
-                                                                        .map(
-                                                                            (x) =>
-                                                                                x.currency + ' ' + x.amount,
-                                                                        )
-                                                                        .join(' · ') || c.unavailable}
-                                                                </td>
+                                                                {company && <td>{cell(m.paid_units)}</td>}
+                                                                {company && (
+                                                                    <td>
+                                                                        {m.net_amounts
+                                                                            .map(
+                                                                                (x) =>
+                                                                                    x.currency +
+                                                                                    ' ' +
+                                                                                    x.amount,
+                                                                            )
+                                                                            .join(' · ') || c.unavailable}
+                                                                    </td>
+                                                                )}
                                                             </tr>
                                                         ))}
                                                     </tbody>
@@ -547,7 +594,7 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
                                     </section>
                                 </div>
                                 <p className={styles.note}>
-                                    {f.coverage} {c.purchaserNote}
+                                    {f.coverage} {company ? f.campaignNote : c.purchaserNote}
                                 </p>
                             </>
                         )}

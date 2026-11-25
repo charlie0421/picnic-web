@@ -41,7 +41,11 @@ export function usePlaybackMeasurement(
                             apikey: process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '',
                             Authorization: 'Bearer ' + data.session.access_token,
                         },
-                        body: JSON.stringify({ p_impression: impression, p_watched_ms: amount }),
+                        body: JSON.stringify({
+                            p_impression: impression,
+                            p_watched_ms: amount,
+                            p_opt_in: true,
+                        }),
                     },
                 );
                 if (r.ok) {

@@ -1,3 +1,4 @@
+import { isChartPreviewEnabled } from '@/lib/charts/fandom-preview';
 import { Suspense } from 'react';
 import { getTranslations } from '@/lib/i18n/server';
 import type { Language } from '@/config/settings';
@@ -26,12 +27,7 @@ export default async function ArtistReportsPage({ params }: Props) {
     ) as ChartCopy;
     return (
         <Suspense fallback={<p>{chart.loading}</p>}>
-            <FandomExplorer
-                locale={lang}
-                copy={copy}
-                chart={chart}
-                preview={process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic'}
-            />
+            <FandomExplorer locale={lang} copy={copy} chart={chart} preview={isChartPreviewEnabled()} />
         </Suspense>
     );
 }

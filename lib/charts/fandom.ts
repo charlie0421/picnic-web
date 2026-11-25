@@ -4,6 +4,7 @@ import type { ChartCell } from './contract';
 export const fandomMetrics = [
     'fans',
     'voters',
+    'purchaser_voters',
     'votes',
     'viewers',
     'watch_seconds',
@@ -42,6 +43,8 @@ export interface FandomReport {
     country_basis: string | null;
     series_basis: string | null;
     report_period: { start: string; end: string } | null;
+    activity_basis: 'assigned_campaign_activity_not_rolling_fandom' | null;
+    activity_period: { start: string; end: string; days: 7 } | null;
     metrics: Record<FandomMetric, ChartCell>;
     metric_basis: Partial<Record<FandomMetric, string>>;
     series: { date: string; votes: ChartCell; voters: ChartCell }[];
@@ -146,6 +149,7 @@ function subject(v: unknown): Subject {
     };
 }
 export function parseSubjects(v: unknown) {
+    if (!Array.isArray(v)) return fail();
     return array(v, 100).map(subject);
 }
 function cell(v: unknown): ChartCell {
@@ -183,10 +187,20 @@ function period(value: unknown) {
     if (!date.test(start) || !date.test(end) || end <= start) return fail();
     return { start, end };
 }
+function campaignWeek(raw: unknown) {
+    const week = period(raw);
+    if (
+        obj(raw).days !== 7 ||
+        Date.parse(week.end) - Date.parse(week.start) !== 7 * 86400000 ||
+        new Date(week.start).getUTCDay() !== 1
+    )
+        return fail();
+    return { ...week, days: 7 as const };
+}
 function countryField(v: unknown) {
     return typeof v === 'string' && country.test(v) ? v : fail();
 }
-export function parseFandomReport(v: unknown): FandomReport {
+export function parseFandomReport(v: unknown, scope?: DetailOptions['scope']): FandomReport {
     const r = obj(v),
         raw = obj(r.metrics ?? {}),
         bases = obj(r.metric_basis ?? {});
@@ -194,10 +208,12 @@ export function parseFandomReport(v: unknown): FandomReport {
     if (r.as_of != null && (typeof r.as_of !== 'string' || !Number.isFinite(Date.parse(r.as_of))))
         return fail();
     const metrics = Object.fromEntries(
-        fandomMetrics.map((k) => [k, cell(raw[k])]),
+        fandomMetrics.map((k) => [k, scope === 'fandom' && k === 'paid_units' ? none : cell(raw[k])]),
     ) as FandomReport['metrics'];
     const metric_basis = Object.fromEntries(
-        fandomMetrics.filter((k) => typeof bases[k] === 'string').map((k) => [k, field(bases[k], 100)]),
+        fandomMetrics
+            .filter((k) => typeof bases[k] === 'string' && !(scope === 'fandom' && k === 'paid_units'))
+            .map((k) => [k, field(bases[k], 100)]),
     );
     const markets = array(r.markets, 260).map((v) => {
         const m = obj(v);
@@ -205,8 +221,8 @@ export function parseFandomReport(v: unknown): FandomReport {
             country: countryField(m.country),
             voters: cell(m.voters),
             buyers: cell(m.buyers),
-            paid_units: cell(m.paid_units),
-            net_amounts: money(m.net_amounts),
+            paid_units: scope === 'fandom' ? none : cell(m.paid_units),
+            net_amounts: scope === 'fandom' ? [] : money(m.net_amounts),
         };
     });
     const series = array(r.series, 181).map((v) => {
@@ -214,6 +230,10 @@ export function parseFandomReport(v: unknown): FandomReport {
         if (typeof d.date !== 'string' || !date.test(d.date)) return fail();
         return { date: d.date, votes: cell(d.votes), voters: cell(d.voters) };
     });
+    const activityBasis = r.activity_basis ?? null;
+    if (activityBasis !== null && activityBasis !== 'assigned_campaign_activity_not_rolling_fandom')
+        return fail();
+    if ((activityBasis === null) !== (r.activity_period == null)) return fail();
     return {
         status: r.status,
         subject: r.subject == null ? null : subject(r.subject),
@@ -222,6 +242,8 @@ export function parseFandomReport(v: unknown): FandomReport {
         markets,
         metrics,
         metric_basis,
+        activity_basis: activityBasis,
+        activity_period: r.activity_period == null ? null : campaignWeek(r.activity_period),
         report_period: r.report_period == null ? null : period(r.report_period),
         country_basis: r.country_basis == null ? null : field(r.country_basis, 100),
         series_basis: r.series_basis == null ? null : field(r.series_basis, 100),
@@ -233,7 +255,7 @@ export function parseFandomReport(v: unknown): FandomReport {
             const m = obj(v);
             return { band: field(m.band, 40), count: cell(m.count) };
         }),
-        net_amounts: money(r.net_amounts),
+        net_amounts: scope === 'fandom' ? [] : money(r.net_amounts),
         campaigns: array(r.campaigns, 200).map((v) => {
             const m = obj(v),
                 id = field(m.id, 36);

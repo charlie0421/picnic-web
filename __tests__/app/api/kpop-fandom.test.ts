@@ -57,6 +57,41 @@ describe('fandom report API', () => {
         );
         expect(await r.json()).not.toHaveProperty('top_contributors');
     });
+    it('withholds monetary measures in anonymous reports and synthetic previews', async () => {
+        const money = [{ currency: 'USD', amount: '1234.56' }];
+        const paid = { status: 'available', value: 54321 };
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () =>
+                Response.json({
+                    status: 'ready',
+                    metrics: { paid_units: paid },
+                    net_amounts: money,
+                    markets: [{ country: 'ID', paid_units: paid, net_amounts: money }],
+                }),
+            ),
+        );
+        for (const mode of ['', 'synthetic']) {
+            vi.stubEnv('KPOP_CHART_PREVIEW_DATA', mode);
+            const r = await request('id=11&entity=group&country=ID');
+            const json = await r.json();
+            expect(json.net_amounts).toEqual([]);
+            expect(json.metrics.paid_units).toEqual({ status: 'unavailable', value: null });
+            expect(json.markets[0].net_amounts).toEqual([]);
+            expect(json.markets[0].paid_units.value).toBeNull();
+        }
+    });
+    it('uses the live API on production even when a preview flag leaked into its configuration', async () => {
+        vi.stubEnv('VERCEL_ENV', 'production');
+        vi.stubEnv('KPOP_CHART_PREVIEW_DATA', 'synthetic');
+        vi.stubGlobal(
+            'fetch',
+            vi.fn(async () => Response.json([])),
+        );
+        const r = await request('q=Rin');
+        expect(await r.json()).toEqual([]);
+        expect(r.headers.has('x-picnic-data')).toBe(false);
+    });
     it('requires explicit sample configuration and never fills an upstream failure', async () => {
         vi.stubGlobal(
             'fetch',

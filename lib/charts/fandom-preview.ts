@@ -1,5 +1,8 @@
 // First-party fictional catalog for explicitly marked investor previews.
 import { parseFandomReport, type FandomRequest, type Subject } from './fandom';
+export function isChartPreviewEnabled() {
+    return process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic' && process.env.VERCEL_ENV !== 'production';
+}
 const groups = [
     ['VELA NINE', '벨라 나인'],
     ['Blue Cinema', '블루 시네마'],
@@ -90,28 +93,32 @@ export function sampleFandom(req: FandomRequest) {
             voters: n(voters),
             votes: n(points.reduce((a, p) => a + p.votes.value, 0)),
             returning_pct: n(38.4),
+            purchaser_voters: n(Math.floor(buyers * 0.85)),
             paid_units: n(buyers * 34),
         }),
     };
-    return parseFandomReport({
-        status: 'ready',
-        subject,
-        as_of: new Date(end).toISOString(),
-        country_basis: 'profile_at_publication',
-        report_period: { start: iso(end - days * day), end: iso(end) },
-        series_basis: linked ? 'completed_week' : 'utc_daily',
-        metrics,
-        series: linked ? [] : points,
-        markets: linked ? [] : rows,
-        ad_markets: linked
-            ? []
-            : rows.map((r) => ({ country: r.country, viewers: n(Math.floor(r.voters.value * 0.65)) })),
-        net_amounts: [{ currency: 'USD', amount: (buyers * 4.79).toFixed(2) }],
-        repeat_intervals: [
-            { band: 'under_1d', count: n(Math.floor(buyers * 0.056)) },
-            { band: '1_to_7d', count: n(Math.floor(buyers * 0.1)) },
-            { band: 'over_7d', count: n(Math.floor(buyers * 0.062)) },
-        ],
-        campaigns: linked ? [campaign] : [],
-    });
+    return parseFandomReport(
+        {
+            status: 'ready',
+            subject,
+            as_of: new Date(end).toISOString(),
+            country_basis: 'profile_at_publication',
+            report_period: { start: iso(end - days * day), end: iso(end) },
+            series_basis: linked ? 'completed_week' : 'utc_daily',
+            metrics,
+            series: linked ? [] : points,
+            markets: linked ? [] : rows,
+            ad_markets: linked
+                ? []
+                : rows.map((r) => ({ country: r.country, viewers: n(Math.floor(r.voters.value * 0.65)) })),
+            net_amounts: [{ currency: 'USD', amount: (buyers * 4.79).toFixed(2) }],
+            repeat_intervals: [
+                { band: 'under_1d', count: n(Math.floor(buyers * 0.056)) },
+                { band: '1_to_7d', count: n(Math.floor(buyers * 0.1)) },
+                { band: 'over_7d', count: n(Math.floor(buyers * 0.062)) },
+            ],
+            campaigns: linked ? [campaign] : [],
+        },
+        f.scope,
+    );
 }
