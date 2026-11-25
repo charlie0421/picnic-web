@@ -45,8 +45,11 @@ const timestamp = (value: unknown): string | null => {
   return value;
 };
 const hidden = (status: 'suppressed' | 'unavailable'): ChartCell => ({ status, value: null });
+// First-party illustrations for the marked synthetic preview (public/images/charts/sample).
+const SAMPLE_PORTRAIT = /^\/images\/charts\/sample\/[a-z0-9-]+\.svg$/;
 function catalogueImage(value: unknown): string | null {
   if (typeof value !== 'string') return null;
+  if (SAMPLE_PORTRAIT.test(value)) return value;
   try {
     const url = new URL(value);
     return url.protocol === 'https:' && url.hostname === 'cdn.picnic.fan' && !url.port && !url.username && !url.password ? url.href : null;

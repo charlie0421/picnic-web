@@ -31,8 +31,9 @@ describe('anonymous public chart endpoint', () => {
     expect(response.status).toBe(200);
     expect(response.headers.get('X-Picnic-Data')).toBe('synthetic');
     const snapshot = await response.json();
-    expect(snapshot.rankings.map((r: { id: string }) => r.id)).toEqual(['11', '12', '13']);
-    expect(snapshot.rankings[0].value.value).toBe(2800);
+    expect(snapshot.rankings.map((r: { id: string }) => r.id)).toEqual(['11', '12', '13', '15']);
+    expect(snapshot.rankings[0].value.value).toBe(3347);
+    expect(snapshot.rankings[0].image_url).toBe('/images/charts/sample/g-vela-nine.svg');
     expect(snapshot.series).toHaveLength(30);
     expect(snapshot.rankings.every((r: { gender: string }) => r.gender === 'female')).toBe(true);
     const empty = await GET(new NextRequest('http://localhost/api/kpop-chart?country=ZZ'));

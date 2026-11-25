@@ -61,6 +61,17 @@ describe('public chart boundary', () => {
     Object.assign(input.rankings[0], { image_url: 'https://cdn.picnic.fan/artist.jpg' });
     expect(parseChartSnapshot(input, filters).rankings[0].image_url).toBe('https://cdn.picnic.fan/artist.jpg');
   });
+  it('accepts only the exact first-party sample portrait path besides the CDN', () => {
+    const image = (image_url: string) => {
+      const input = fixture();
+      Object.assign(input.rankings[0], { image_url });
+      return parseChartSnapshot(input, filters).rankings[0].image_url;
+    };
+    expect(image('/images/charts/sample/a-rin.svg')).toBe('/images/charts/sample/a-rin.svg');
+    for (const rejected of ['/images/charts/sample/../a.svg', '//evil.test/images/charts/sample/a.svg', '/images/charts/sample/a.svg?x=1', '/images/charts/sample/a.png', 'javascript:alert(1)//a.svg']) {
+      expect(image(rejected)).toBeNull();
+    }
+  });
   it('rejects filter mismatch and dates outside the published exclusive period', () => {
     expect(() => parseChartSnapshot({ ...fixture(), filters: { ...filters, country: 'KR' } }, filters)).toThrow();
     const input = fixture();
