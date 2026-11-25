@@ -4,13 +4,14 @@ import { useEffect, useId, useState } from 'react';
 import Image from 'next/image';
 import { Activity, BarChart3, Building2, Globe2, Info, LockKeyhole, RefreshCw, Sparkles, Users } from 'lucide-react';
 import { chartFreshness, DEFAULT_CHART_FILTERS, parseChartSnapshot, type ChartCell, type ChartFilters, type ChartMetric, type ChartSnapshot } from '@/lib/charts/contract';
+import { fandomDetailHref } from '@/lib/charts/fandom';
 import type { ChartCopy } from '@/lib/charts/copy';
 import styles from './charts.module.css';
 
 type Result = { key: string; state: 'loading' | 'error' | 'loaded'; snapshot?: ChartSnapshot };
 const metrics: ChartMetric[] = ['voters', 'votes', 'purchaser_voters'];
 
-export default function ChartDashboard({ locale, copy: c, syntheticPreview = false }: { locale: string; copy: ChartCopy; syntheticPreview?: boolean }) {
+export default function ChartDashboard({ locale, copy: c, explorerLabel, syntheticPreview = false }: { locale: string; copy: ChartCopy; explorerLabel?: string; syntheticPreview?: boolean }) {
   const [filters, setFilters] = useState<ChartFilters>(DEFAULT_CHART_FILTERS);
   const [rankingOrder, setRankingOrder] = useState<'metric' | 'growth'>('metric');
   const [retry, setRetry] = useState(0);
@@ -89,6 +90,7 @@ export default function ChartDashboard({ locale, copy: c, syntheticPreview = fal
           {syntheticPreview && <p role="note" aria-label={c.sampleBadge} className={styles.demoNotice}>{c.sampleBadge}</p>}
           <h1 id={titleId}>{c.title}</h1>
           <p>{c.subtitle}</p>
+          {explorerLabel && <a className={styles.explorerLink} href={`/${locale}/charts/artists`}>{explorerLabel} ↗</a>}
           <div className={styles.publication}><span>{c.published}</span><strong>{snapshot?.published_at ? `${formatDate(snapshot.published_at)} UTC` : c.unpublished}</strong></div>
         </section>
 
@@ -131,7 +133,7 @@ export default function ChartDashboard({ locale, copy: c, syntheticPreview = fal
             <div className={styles.tableScroll} tabIndex={0} role="region" aria-label={c.ranking}><table className={styles.ranking}><caption className={styles.srOnly}>{c.ranking} · {selectedLabel}</caption><thead><tr><th scope="col">#</th><th scope="col">{c.name}</th><th scope="col">{c.value}</th><th scope="col">{c.growth}</th></tr></thead><tbody>
               {displayedRows.map((row) => {
                 const name = row.name[locale] || row.name.en || row.name.ko || Object.values(row.name)[0] || '—';
-                return <tr key={row.id}><td><span className={row.rank !== null && row.rank <= 3 ? styles.topRank : styles.rank}>{row.rank ?? '—'}</span></td><th scope="row"><div className={styles.artistCell}><ArtistAvatar key={row.image_url ?? ''} name={name} image={row.image_url} /><div><strong>{name}</strong><span>{row.entity === 'group' ? row.gender ? c[row.gender] : c.unknownGender : c.artist}</span><div className={styles.track} aria-hidden="true">{row.value.status === 'available' && <div style={{ width: `${((row.value.value ?? 0) / max) * 100}%` }} />}</div></div></div></th><td className={styles.numeric}>{textCell(row.value)}</td><td className={styles.growth}>{textCell(row.growth_pct, true)}</td></tr>;
+                return <tr key={row.id}><td><span className={row.rank !== null && row.rank <= 3 ? styles.topRank : styles.rank}>{row.rank ?? '—'}</span></td><th scope="row"><div className={styles.artistCell}><ArtistAvatar key={row.image_url ?? ''} name={name} image={row.image_url} /><div><strong><a href={fandomDetailHref(locale,row,filters.days,filters.country,filters.group_mode)}>{name}</a></strong><span>{row.entity === 'group' ? row.gender ? c[row.gender] : c.unknownGender : c.artist}</span><div className={styles.track} aria-hidden="true">{row.value.status === 'available' && <div style={{ width: `${((row.value.value ?? 0) / max) * 100}%` }} />}</div></div></div></th><td className={styles.numeric}>{textCell(row.value)}</td><td className={styles.growth}>{textCell(row.growth_pct, true)}</td></tr>;
               })}
               {!snapshot?.rankings.length && <tr><td colSpan={4} className={styles.emptyCell}><BarChart3 size={32} aria-hidden="true" /><p>{state === 'loading' ? c.loading : state === 'error' ? c.error : snapshot?.status === 'suppressed' ? c.suppressed : c.empty}</p></td></tr>}
             </tbody></table></div>

@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { createBrowserSupabaseClient } from '@/lib/supabase/client';
 import { AntiAbuseError, mapAntiAbuseError } from '@/lib/anti-abuse/handler';
 import { RateLimitedDialog } from '@/components/anti-abuse/RateLimitedDialog';
+import { attributedDestination } from '@/lib/charts/campaign-destination';
+import { usePlaybackMeasurement } from '@/hooks/charts/usePlaybackMeasurement';
 import HlsVideo from '@/components/client/HlsVideo';
 
 type IssuedAd = {
@@ -26,6 +28,17 @@ export default function ShortformAdPlayerPage() {
   const [rateLimitedChannel, setRateLimitedChannel] = useState<string | null>(null);
   const videoRef = useRef<HTMLVideoElement | null>(null);
   const router = useRouter();
+  const [impression, setImpression] = useState<string|null>(null);
+  const [permitted, setPermitted] = useState(false);
+  const [allowAttribution, setAllowAttribution] = useState(false);
+  const trustedCheckoutOrigins = process.env.NEXT_PUBLIC_KPOP_CHECKOUT_ORIGINS ?? '';
+  const marker = '00000000-0000-4000-8000-000000000000';
+  const supportsAttribution = !!ad?.cta_url && attributedDestination(ad.cta_url,trustedCheckoutOrigins,marker) !== ad.cta_url;
+  usePlaybackMeasurement(videoRef, impression, permitted);
+  useEffect(() => {
+    const { data } = supabase.auth.onAuthStateChange((event) => { if (event === 'SIGNED_OUT' || event === 'SIGNED_IN') { setPermitted(false); setAllowAttribution(false); } });
+    return () => data.subscription.unsubscribe();
+  }, [supabase]);
 
   const getAuthToken = useCallback(async () => {
     const { data } = await supabase.auth.getSession();
@@ -52,6 +65,9 @@ export default function ShortformAdPlayerPage() {
         throw new Error('issue failed');
       }
       const json = await res.json();
+      setPermitted(false);
+      setAllowAttribution(false);
+      setImpression(typeof json.impression_id === 'string' ? json.impression_id : null);
       setAd(json.ad);
       setTokens(json.tokens);
     } catch (e) {
@@ -137,10 +153,34 @@ export default function ShortformAdPlayerPage() {
     };
   }, [callMore, moreOpened]);
 
-  const onClickMore = () => {
+  const onClickMore = async () => {
     if (!ad?.cta_url) return;
     setMoreOpened(true);
-    window.open(ad.cta_url, '_blank', 'noopener,noreferrer');
+    const destination = ad.cta_url;
+    if (!allowAttribution || !supportsAttribution || !impression) {
+      window.open(destination, '_blank', 'noopener,noreferrer');
+      return;
+    }
+    const target = window.open('about:blank', '_blank');
+    if (!target) return;
+    target.opener = null;
+    // The original destination is always available if measurement fails.
+    let next = destination;
+    try {
+      const auth = await getAuthToken();
+      if (auth) {
+        const response = await fetch(new URL('/rest/v1/rpc/issue_kpop_campaign_click',process.env.NEXT_PUBLIC_SUPABASE_URL),{
+          method:'POST',cache:'no-store',credentials:'omit',signal:AbortSignal.timeout(2500),
+          headers:{'Content-Type':'application/json',Authorization:auth,apikey:process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY||''},
+          body:JSON.stringify({p_impression:impression}),
+        });
+        if (response.ok) {
+          const token:unknown = await response.json();
+          if(typeof token==='string') next=attributedDestination(destination,trustedCheckoutOrigins,token);
+        }
+      }
+    } catch { /* Checkout remains available when attribution is offline. */ }
+    if (!target.closed) target.location.replace(next);
   };
 
   return (
@@ -168,6 +208,14 @@ export default function ShortformAdPlayerPage() {
             controlsList='nodownload noplaybackrate'
             preload='metadata'
           />
+          {impression && <label style={{display:'block',marginTop:12,fontSize:14}}>
+            <input type="checkbox" checked={permitted} onChange={e=>setPermitted(e.target.checked)} /> 이 광고의 재생 시간 측정에 동의합니다 (선택).
+            <small style={{display:'block'}}>PICNIC은 화면에 표시된 재생 구간을 팬덤·캠페인 통계에 사용합니다. 시청 보상은 선택과 관계없이 받을 수 있습니다.</small>
+          </label>}
+          {impression && supportsAttribution && <label style={{display:'block',marginTop:8,fontSize:14}}>
+            <input type="checkbox" checked={allowAttribution} onChange={e=>setAllowAttribution(e.target.checked)} /> 이 광고와 주문 연결에 동의합니다 (선택).
+            <small style={{display:'block'}}>광고주의 결제 페이지에 이 광고의 연결 코드를 전달합니다. PICNIC은 확인된 주문을 캠페인 통계에 사용합니다.</small>
+          </label>}
           <div style={{ marginTop: 12, display: 'flex', gap: 8 }}>
             <button
               type='button'

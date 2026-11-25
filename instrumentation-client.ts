@@ -7,7 +7,7 @@ import * as Sentry from '@sentry/nextjs';
 import { scrubSpan } from '@/lib/sentry/scrub';
 import { scrubBrowserBreadcrumb, scrubBrowserEvent } from '@/lib/sentry/browser-scrub';
 import { createBrowserTransport } from '@/lib/sentry/browser-transport';
-import { isBusinessInquiryPath } from '@/lib/charts/business';
+import { isPrivateChartPath } from '@/lib/charts/business';
 
 const SENTRY_DSN = process.env.NEXT_PUBLIC_SENTRY_DSN || process.env.SENTRY_DSN;
 const SENTRY_DEBUG = process.env.NEXT_PUBLIC_SENTRY_DEBUG === 'true';
@@ -76,8 +76,8 @@ const isSentryWrapperFrame = (frame: StackFrame): boolean =>
   frame.colno === wrapperFrameLocation.colno;
 
 // DSN이 없으면 Sentry 초기화를 건너뛰기 (개발 환경에서 네트워크 에러 방지)
-const isPrivateIntake = typeof window !== 'undefined' && isBusinessInquiryPath(window.location.pathname);
-if (SENTRY_DSN && !isPrivateIntake) {
+const isPrivateChart = typeof window !== 'undefined' && isPrivateChartPath(window.location.pathname);
+if (SENTRY_DSN && !isPrivateChart) {
   Sentry.init({
     dsn: SENTRY_DSN,
     transport: createBrowserTransport,
@@ -338,7 +338,7 @@ if (SENTRY_DSN && !isPrivateIntake) {
     });
   }
 } else {
-  if (process.env.NODE_ENV === 'development' && !isPrivateIntake) {
+  if (process.env.NODE_ENV === 'development' && !isPrivateChart) {
     // eslint-disable-next-line no-console
     console.log('ℹ️ Sentry DSN이 설정되지 않아 초기화를 건너뜁니다 (개발 환경)');
   }
@@ -347,6 +347,6 @@ if (SENTRY_DSN && !isPrivateIntake) {
 // Export the required router transition hook for navigation instrumentation
 export const onRouterTransitionStart = (...args: Parameters<typeof Sentry.captureRouterTransitionStart>) => {
   replaySignals.close();
-  if (typeof window !== 'undefined' && isBusinessInquiryPath(window.location.pathname)) return;
+  if (typeof window !== 'undefined' && isPrivateChartPath(window.location.pathname)) return;
   return Sentry.captureRouterTransitionStart(...args);
 };

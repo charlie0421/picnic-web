@@ -32,7 +32,7 @@ export async function middleware(req: NextRequest) {
       acceptLanguage: req.headers.get('accept-language'),
     });
     const chartPath = chartHostPath(host, path, preferred);
-    if (chartPath || /^\/charts(?:\/business)?\/?$/.test(path)) {
+    if (chartPath || /^\/charts(?:\/(?:business|artists))?\/?$/.test(path)) {
       const target = new URL('https://chart.picnic.fan');
       target.pathname = chartPath ?? `/${preferred}${path}`;
       target.search = req.nextUrl.search;
@@ -40,7 +40,7 @@ export async function middleware(req: NextRequest) {
       res.headers.set('Cache-Control', 'private, no-store');
       return res;
     }
-    const chartRoute = /^\/([^/]+)\/charts(?:\/business)?\/?$/.exec(path);
+    const chartRoute = /^\/([^/]+)\/charts(?:\/(?:business|artists))?\/?$/.exec(path);
     if (chartRoute && (SUPPORTED_LANGUAGES as readonly string[]).includes(chartRoute[1])) {
       return NextResponse.next({ request: { headers: buildForwardedRequestHeaders(req) } });
     }

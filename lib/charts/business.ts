@@ -26,7 +26,7 @@ export function parseBusinessInquiry(value: unknown): BusinessInquiry | null {
   return { ...fields, request_id: data.request_id, locale: data.locale as Language };
 }
 
-export function isBusinessInquiryPath(pathname: string): boolean {
+export function isPrivateChartPath(pathname: string): boolean {
   const parts = pathname.split('/');
-  return SUPPORTED_LANGUAGES.includes(parts[1] as Language) && parts[2] === 'charts' && parts[3] === 'business' && (parts.length === 4 || (parts.length === 5 && parts[4] === ''));
+  return SUPPORTED_LANGUAGES.includes(parts[1] as Language) && parts[2] === 'charts' && ['business', 'artists'].includes(parts[3]) && (parts.length === 4 || (parts.length === 5 && parts[4] === ''));
 }

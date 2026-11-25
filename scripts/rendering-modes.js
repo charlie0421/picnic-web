@@ -40,6 +40,7 @@ const MODES = {
   // ── app/[lang] ─────────────────────────────────────────────────────────────
   '[lang]/page.tsx': { kind: 'redirect' },
   '[lang]/(auth)/login/page.tsx': { kind: 'static-shell' },
+  '(business)/[lang]/charts/artists/page.tsx': { kind: 'force-dynamic' },
   '[lang]/(main)/charts/page.tsx': { kind: 'isr', revalidate: 3600 },
   '[lang]/(main)/concert2025/page.tsx': { kind: 'force-static', revalidate: 86400 },
   '[lang]/(main)/media/page.tsx': { kind: 'force-dynamic' },
