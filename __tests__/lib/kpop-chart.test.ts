@@ -21,7 +21,8 @@ describe('public chart boundary', () => {
   });
   it('keeps the country attribution of a release and rejects unsupported methods', () => {
     expect(parseChartSnapshot({ ...fixture(), country_basis: 'profile_at_publication' }, filters).country_basis).toBe('profile_at_publication');
-    expect(parseChartSnapshot(fixture(), filters).country_basis).toBe('vote_time_verified');
+    expect(parseChartSnapshot(fixture(), filters).country_basis).toBeNull();
+    expect(parseChartSnapshot({ ...fixture(), country_basis: 'vote_time_verified' }, filters).country_basis).toBe('vote_time_verified');
     expect(() => parseChartSnapshot({ ...fixture(), country_basis: 'nationality' }, filters)).toThrow();
   });
   it('rejects unsupported filters instead of broadening the data request', () => {

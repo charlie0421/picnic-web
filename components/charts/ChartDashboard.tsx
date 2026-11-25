@@ -104,7 +104,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
             <label className={styles.gender}><span>{c.gender}</span><select value={filters.group_gender} onChange={e => change('group_gender', e.target.value as ChartFilters['group_gender'])}><option value="all">{c.allGenders}</option>{(['male', 'female', 'mixed'] as const).map(gender => <option key={gender} value={gender}>{c[gender]}</option>)}</select></label>
           </div>}
           <div className={styles.periodCaption}><span>{snapshot && lastDay ? `${formatDate(snapshot.period.start)} – ${formatDate(lastDay)} · UTC` : c.periodNote}</span><span>{filters.entity === 'artist' ? c.artistNote : c.groupNote}</span></div>
-          {snapshot?.published_at && <p className={styles.dailyNote}>{snapshot.country_basis === 'profile_at_publication' ? c.profileCountryNote : c.countryNote}</p>}
+          {snapshot?.published_at && snapshot.country_basis && <p className={styles.dailyNote}>{snapshot.country_basis === 'profile_at_publication' ? c.profileCountryNote : c.countryNote}</p>}
         </section>
 
         <div aria-live="polite" aria-atomic="true" className={styles.status}>

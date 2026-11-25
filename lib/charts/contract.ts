@@ -13,7 +13,7 @@ export interface ChartFilters {
 export interface ChartCell { status: 'available' | 'suppressed' | 'unavailable'; value: number | null }
 export interface ChartSnapshot {
   schema_version: 1;
-  country_basis: 'profile_at_publication' | 'vote_time_verified';
+  country_basis: 'profile_at_publication' | 'vote_time_verified' | null;
   status: 'ready' | 'empty' | 'suppressed';
   published_at: string | null;
   refresh_due_at: string | null;
@@ -76,8 +76,8 @@ export function parseChartFilters(params: URLSearchParams): ChartFilters | null 
 export function parseChartSnapshot(input: unknown, expected: ChartFilters): ChartSnapshot {
   const data = record(input);
   if (data.schema_version !== 1 || !['ready', 'empty', 'suppressed'].includes(String(data.status))) throw new Error('Unsupported chart contract');
-  const countryBasis = data.country_basis === undefined ? 'vote_time_verified' : data.country_basis;
-  if (countryBasis !== 'profile_at_publication' && countryBasis !== 'vote_time_verified') throw new Error('Unsupported chart country attribution');
+  const countryBasis = data.country_basis ?? null;
+  if (countryBasis !== null && countryBasis !== 'profile_at_publication' && countryBasis !== 'vote_time_verified') throw new Error('Unsupported chart country attribution');
   const filters = record(data.filters);
   for (const key of ['country', 'entity', 'group_mode', 'group_gender', 'metric'] as const) {
     if (filters[key] !== expected[key]) throw new Error('Chart filter mismatch');
