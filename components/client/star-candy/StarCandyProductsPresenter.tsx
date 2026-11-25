@@ -23,6 +23,8 @@ import {
 import { usePaymentPolling } from './usePaymentPolling';
 import { usePaymentHandlers } from './usePaymentHandlers';
 import { PayPalCheckout } from './PayPalCheckout';
+import { PortOneTestCheckout } from './PortOneTestCheckout';
+import { isLocalPortOneDatabase } from '@/lib/payment/portone-test-local';
 
 interface StarCandyProductsPresenterProps {
   products: Products[];
@@ -38,6 +40,10 @@ export function StarCandyProductsPresenter({
   const { t, currentLanguage } = useLanguageStore();
   const { user, userProfile, loadUserProfile } = useAuth();
   const isAdmin = isAdminProfile(userProfile);
+  const [portOneSelection, setPortOneSelection] = useState<{actor: string; product: string} | null>(null);
+  const portOneTestAvailable = user && isAdmin && process.env.NODE_ENV !== 'production' &&
+    process.env.NEXT_PUBLIC_PORTONE_TEST_CHECKOUT_ENABLED === 'true' &&
+    isLocalPortOneDatabase(process.env.NEXT_PUBLIC_SUPABASE_URL);
   const [selectedPaymentMethod, setSelectedPaymentMethod] =
     useState<PaymentMethod>('paypal');
   const dialogContext = useDialog();
@@ -236,6 +242,8 @@ export function StarCandyProductsPresenter({
                     t('star_candy_purchase')
                   )}
                 </button>
+                {portOneTestAvailable && <button type="button" className="mt-3 w-full rounded-lg border py-2"
+                  onClick={() => setPortOneSelection({actor:user.id, product:product.id})}>포트원 관리자 테스트</button>}
               </div>
             </motion.div>
           );
@@ -270,6 +278,8 @@ export function StarCandyProductsPresenter({
         </ul>
       </div>
 
+      {portOneTestAvailable && portOneSelection?.actor === user.id &&
+        <PortOneTestCheckout key={user.id} userId={user.id} productId={portOneSelection.product} onClose={() => setPortOneSelection(null)} />}
       {user && isAdmin && payPalProductId && (
         <PayPalCheckout key={user.id} userId={user.id} productId={payPalProductId}
           language={currentLanguage} t={t} onClose={closePayPalCheckout} />

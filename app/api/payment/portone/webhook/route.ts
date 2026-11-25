@@ -1,4 +1,6 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
+import { isServerOrderUuid } from '@/lib/payment/server-order';
+import { reconcilePortOneTestWebhook } from '@/lib/payment/portone-test/webhook';
 import { NextRequest, NextResponse } from 'next/server';
 import { logSafeError } from '@/utils/log-safe-error';
 import { getStarCandyBonusExpiryISO } from '@/utils/star-candy-bonus';
@@ -93,7 +95,13 @@ export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', asy
       );
     }
 
-    // Supabase Service Role Client 생성
+    if (paymentId.startsWith('web_')) {
+      if (!isServerOrderUuid(paymentId.slice(4))) return NextResponse.json({ error: 'INVALID_PAYMENT_ID' }, { status: 400 });
+      // Only an independently observed native intake acknowledges this signed notification.
+      const accepted = await reconcilePortOneTestWebhook(paymentId).catch(() => false);
+      return accepted ? NextResponse.json({ received: true })
+        : NextResponse.json({ error: 'WEB_PAYMENT_ORDER_UNAVAILABLE' }, { status: 503 });
+    }
     // NOTE: service_role is required because process_portone_capture has
     // EXECUTE granted to service_role only (see migration 20260424000003).
     let supabase;

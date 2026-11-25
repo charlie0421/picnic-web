@@ -40,6 +40,12 @@ describe('PortOne browser SDK response', () => {
     expect(await handle({ paymentId: 'different-order', code: null })).toMatchObject({ success: false });
   });
 
+  it('keeps the PortOne V2 attempt ID from the matching payment response', async () => {
+    expect(await handle({ transactionType: 'PAYMENT', paymentId: request.paymentId, txId: 'attempt-001' }))
+      .toEqual({ success: true, paymentId: request.paymentId, transactionId: 'attempt-001' });
+    expect(fetch).not.toHaveBeenCalled();
+  });
+
   it('keeps an authorization awaiting manual approval out of the success path', async () => {
     const result = await handle({ paymentId: 'order-fixture', paymentToken: 'fixture-token' });
     expect(result).toMatchObject({ success: false, error: { code: 'PAYMENT_REQUIRES_CONFIRMATION' } });

@@ -180,7 +180,7 @@ class PortOneService {
         return {
           success: true,
           paymentId: response.paymentId,
-          transactionId: response.transactionId,
+          transactionId: typeof response.txId === 'string' ? response.txId : undefined,
         };
       } else {
         // Payment failed or cancelled

@@ -19,6 +19,7 @@ const mocks = vi.hoisted(() => ({
   productQueries: [] as Array<{ column: string; value: unknown }>,
   rpcResult: { receipt_id: 101 } as unknown,
   rpcError: null as { message: string; code?: string } | null,
+  reconcileTest: vi.fn(),
   verifyPortOnePayment: vi.fn(),
   rpc: vi.fn(),
 }));
@@ -49,6 +50,7 @@ vi.mock('@/app/api/payment/portone/webhook/webhook-helpers', async (importOrigin
   };
 });
 
+vi.mock('@/lib/payment/portone-test/webhook', () => ({ reconcilePortOneTestWebhook: mocks.reconcileTest }));
 import { POST } from '@/app/api/payment/portone/webhook/route';
 
 const USER = '00000000-0000-0000-0000-000000000001';
@@ -102,6 +104,7 @@ function webhook(body: unknown, options: SendOptions = {}) {
 
 beforeEach(() => {
   vi.stubEnv('PORTONE_WEBHOOK_SECRET', SECRET);
+  mocks.reconcileTest.mockReset();
   mocks.payment = paidPayment();
   mocks.verifyError = null;
   mocks.profile = { deleted_at: null };
@@ -120,6 +123,26 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe('주문 기반 포트원 웹훅', () => {
+  const id = 'web_00000000-0000-4000-8000-000000000001';
+  it.each([[true, 200], [false, 503]] as const)('접수 결과 %s를 반환하고 기존 지급 경로를 건너뛴다', async (accepted, status) => {
+    mocks.reconcileTest.mockResolvedValue(accepted);
+    expect((await POST(webhook(paidEvent(id)))).status).toBe(status);
+    expect(mocks.reconcileTest).toHaveBeenCalledExactlyOnceWith(id);
+    expect(mocks.verifyPortOnePayment).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it('서명 오류는 주문 조회 전에 거부한다', async () => {
+    expect((await POST(webhook(paidEvent(id), { secret: OTHER_SECRET }))).status).toBe(401);
+    expect(mocks.reconcileTest).not.toHaveBeenCalled();
+  });
+  it('잘못된 예약 결제 ID가 기존 지급 경로에 도달하지 않는다', async () => {
+    expect((await POST(webhook(paidEvent('web_invalid')))).status).toBe(400);
+    expect(mocks.reconcileTest).not.toHaveBeenCalled();
+    expect(mocks.verifyPortOnePayment).not.toHaveBeenCalled();
+  });
 });
 
 describe('PortOne webhook — 서명 검증 (Standard Webhooks, #77)', () => {

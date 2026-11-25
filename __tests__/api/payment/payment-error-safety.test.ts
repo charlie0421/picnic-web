@@ -71,6 +71,11 @@ describe('payment failures hide provider and customer details', () => {
     expect(response.status).toBe(500);
     expect(await response.text()).not.toContain('Q7pPriv');
   });
+  it('예약된 주문 결제 ID는 주문 전용 상태 조회로 제한한다', async () => {
+    const response = await verify(request('verify', JSON.stringify({ paymentId: 'web_00000000-0000-4000-8000-000000000001' })));
+    expect(response.status).toBe(409);
+    expect(await response.json()).toEqual({ error: 'WEB_PAYMENT_ORDER_STATUS_REQUIRED' });
+  });
   it('verify auth failure keeps 401 without the provider message', async () => {
     state.getUser.mockResolvedValue({ data: { user: null }, error: new Error(PRIVATE) });
     const response = await verify(verifyRequest());

@@ -196,7 +196,7 @@ export function callWebPaymentServiceRpc(client: SupabaseClient, name: string, a
   return serviceRpc(client, name, args, false);
 }
 
-export function createWebPaymentChargeRepository(client: SupabaseClient): WebPaymentChargeRepository {
+export function createWebPaymentChargeRepository(client: SupabaseClient, action: 'CAPTURE' | 'CONFIRM' = 'CAPTURE'): WebPaymentChargeRepository {
   const rpc = (name: string, args: Record<string, unknown>, prepare = false) => serviceRpc(client, name, args, prepare);
   const actorArgs = (actorUserId: string, orderId: string) => ({ p_actor_user_id: actorUserId, p_order_id: orderId });
   return {
@@ -213,11 +213,11 @@ export function createWebPaymentChargeRepository(client: SupabaseClient): WebPay
     async bindProviderIdentity(contextId, evidence) { return parseObservation(await rpc('bind_web_payment_provider_identity', { p_context_id: contextId, p_evidence: evidence })); },
     async recordObservation(contextId, evidence) { return parseObservation(await rpc('record_web_payment_observation', { p_context_id: contextId, p_evidence: evidence })); },
     async claimCharge(actorUserId, orderId, expectedVersion) {
-      return parseCommand(await rpc('claim_web_payment_charge', { ...actorArgs(actorUserId, orderId), p_expected_version: expectedVersion, p_action: 'CAPTURE' }), false);
+      return parseCommand(await rpc('claim_web_payment_charge', { ...actorArgs(actorUserId, orderId), p_expected_version: expectedVersion, p_action: action }), false);
     },
     async recordSubmissionIntent(actorUserId, orderId, expectedVersion, lease) {
       return parseCommand(await rpc('record_web_payment_submission_intent', { ...actorArgs(actorUserId, orderId), p_expected_version: expectedVersion,
-        p_action: 'CAPTURE', p_attempt_id: lease.attemptId, p_lease_token: lease.leaseToken, p_fencing_version: lease.fencingVersion }), true);
+        p_action: action, p_attempt_id: lease.attemptId, p_lease_token: lease.leaseToken, p_fencing_version: lease.fencingVersion }), true);
     },
     async receivePurchase(orderId, observationId) { return parseIntake(await rpc('receive_web_payment_purchase', { p_order_id: orderId, p_observation_id: observationId }), orderId); },
     // S1. Only the fixed intent sender tuple is sent; other lease fields stay in memory.

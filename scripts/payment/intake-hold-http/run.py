@@ -59,6 +59,9 @@ M1_TO_M5 = tuple(MIGRATIONS + name for name in (
 CONTRACT_PREFIX = (*CURRENT10, *M1_TO_M5)
 TEST_ADMIN_MIGRATION = MIGRATIONS + '20261125023007_web_payment_test_admin.sql'
 TEST_ADMIN_SHA256 = 'e51c49cf95aec0b0cd824b918a2c12c62d15d316a60f1370df0b509b79a1d141'
+PORTONE_ENTRY_MIGRATION = MIGRATIONS + '20261125033657_web_payment_portone_test_entry.sql'
+PORTONE_ENTRY_SHA256 = 'f9837512a2668d1728c274c74a056c7e9d3ead509c188028052ba21e12282999'
+INTEGRATED_TAILS = ((), (TEST_ADMIN_MIGRATION,), (TEST_ADMIN_MIGRATION, PORTONE_ENTRY_MIGRATION))
 # Already applied on the integration baseline. Replay these before the pending web contract.
 INTEGRATED_BASELINE_PINS = {
     MIGRATIONS + '20261116000000_bonus_history_parent_index.sql':
@@ -284,10 +287,11 @@ def manifest_shape(manifest):
     require(isinstance(manifest['images'], dict), 'MANIFEST_SET', 'images must be an object')
     paths = tuple(row['path'] for row in prefix)
     integrated = (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX)
-    require(paths in (CONTRACT_PREFIX, integrated, (*integrated, TEST_ADMIN_MIGRATION)),
+    require(paths == CONTRACT_PREFIX or any(paths == integrated + tail for tail in INTEGRATED_TAILS),
             'CONTRACT_PREFIX_MISMATCH', 'Contract prefix differs from the supported ordered profiles')
+    approved_pins = {**INTEGRATED_BASELINE_PINS, TEST_ADMIN_MIGRATION: TEST_ADMIN_SHA256, PORTONE_ENTRY_MIGRATION: PORTONE_ENTRY_SHA256}
     for row in prefix:
-        approved = TEST_ADMIN_SHA256 if row['path'] == TEST_ADMIN_MIGRATION else INTEGRATED_BASELINE_PINS.get(row['path'])
+        approved = approved_pins.get(row['path'])
         require(approved is None or approved == row['sha256'], 'SOURCE_DRIFT',
                 'Integrated migration differs from the approved hash: ' + row['path'])
 
@@ -381,10 +385,10 @@ def actual_prefix(db_root):
                    if path.name > last_current)
     if tuple(later) == M1_TO_M5:
         return CONTRACT_PREFIX
-    tail = (TEST_ADMIN_MIGRATION,) if TEST_ADMIN_MIGRATION in later else ()
-    require(tuple(later) == tuple(sorted((*M1_TO_M5, *INTEGRATED_BASELINE_PINS, *tail))), 'CONTRACT_PREFIX_MISMATCH',
-            'Unexpected or incomplete migration set after current10')
-    return (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX, *tail)
+    for tail in INTEGRATED_TAILS:
+        if later == sorted((*M1_TO_M5, *INTEGRATED_BASELINE_PINS, *tail)):
+            return (*INTEGRATED_BASELINE_PINS, *CONTRACT_PREFIX, *tail)
+    raise BoundaryError('CONTRACT_PREFIX_MISMATCH', 'Unexpected or incomplete migration set after current10')
 
 
 def build_manifest(*, web_root, db_root, git, docker):
@@ -1067,6 +1071,8 @@ def setup_database(pair, modules, manifest, native, out, evidence, secrets, *, d
     evidence['installedPrefix'] = baseline + ('current10' if smoke else 'current10+M1-M5')
     if not smoke and TEST_ADMIN_MIGRATION in stages:
         evidence['installedPrefix'] += '+test-admin'
+    if not smoke and PORTONE_ENTRY_MIGRATION in stages:
+        evidence['installedPrefix'] += '+portone-test-entry'
     step('authenticator', 'create role authenticator login noinherit nosuperuser nobypassrls password '
          + sql_literal(modules['pair_fixture'].PUBLIC_PASSWORD)
          + '; grant anon,authenticated,service_role to authenticator; grant connect on database fixture to authenticator;',

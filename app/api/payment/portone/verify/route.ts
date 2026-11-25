@@ -65,6 +65,10 @@ export const POST = withSafeErrors('payment.portone.verify.post.unhandled', asyn
       );
     }
 
+    if (typeof paymentId === 'string' && paymentId.startsWith('web_')) {
+      return NextResponse.json({ error: 'WEB_PAYMENT_ORDER_STATUS_REQUIRED' }, { status: 409 });
+    }
+
     // 웹훅이 이미 처리했는지 확인 (중복 처리 방지)
     const { data: existingReceipt } = await supabase
       .from('receipts')

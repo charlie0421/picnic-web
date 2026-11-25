@@ -596,6 +596,24 @@ class IntegratedBaselineTests(ManifestCase):
         with patch.object(subject, "TEST_ADMIN_SHA256", sha(data), create=True):
             self.assertEqual(self.verify()["contractPrefix"][-1]["path"], name)
 
+    def test_portone_entry_requires_admin_predecessor_and_both_source_pins(self):
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
+        admin = MIGRATION_DIR + "20261125023007_web_payment_test_admin.sql"
+        entry = MIGRATION_DIR + "20261125033657_web_payment_portone_test_entry.sql"
+        pins = {admin: b"admin fixture", entry: b"entry fixture"}
+        for name, data in pins.items():
+            self.put(self.db, name, data)
+            self.git.blobs[str(self.db)][name] = data
+            self.manifest["contractPrefix"].append({"path": name, "sha256": sha(data)})
+        self.seal()
+        with patch.object(subject, "TEST_ADMIN_SHA256", sha(pins[admin])), \
+             patch.object(subject, "PORTONE_ENTRY_SHA256", sha(pins[entry]), create=True):
+            self.assertEqual(self.verify()["contractPrefix"][-1]["path"], entry)
+            self.manifest["contractPrefix"].pop(-2)
+            (self.db / admin).unlink()
+            self.seal()
+            self.refuses(Code.PREFIX, self.verify)
+
     def test_integrated_baseline_precedes_the_web_contract(self):
         self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
         self.seal()
