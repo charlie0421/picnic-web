@@ -12,6 +12,7 @@ const metrics: ChartMetric[] = ['voters', 'votes', 'purchaser_voters'];
 
 export default function ChartDashboard({ locale, copy: c }: { locale: string; copy: ChartCopy }) {
   const [filters, setFilters] = useState<ChartFilters>(DEFAULT_CHART_FILTERS);
+  const [rankingOrder, setRankingOrder] = useState<'metric' | 'growth'>('metric');
   const [retry, setRetry] = useState(0);
   const [result, setResult] = useState<Result>({ key: '', state: 'loading' });
   const key = JSON.stringify(filters);
@@ -67,6 +68,17 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
   const stale = !!(snapshot?.refresh_due_at && clock !== null && clock > Date.parse(snapshot.refresh_due_at));
   const max = Math.max(1, ...(snapshot?.rankings ?? []).map(row => row.value.status === 'available' ? row.value.value ?? 0 : 0));
   const selectedLabel = c[filters.metric];
+  const rows = snapshot?.rankings ?? [];
+  const displayedRows = rankingOrder === 'metric' ? rows : [...rows].sort((a, b) => {
+    const left = a.growth_pct.value, right = b.growth_pct.value;
+    if (left === null) return right === null ? 0 : 1;
+    return right === null ? -1 : right - left;
+  });
+  const openIndonesiaMarket = () => {
+    setCountries(previous => previous.includes('ID') ? previous : [...previous, 'ID']);
+    setFilters({ country: 'ID', days: 30, entity: 'group', group_mode: 'member_rollup', group_gender: 'female', metric: 'voters' });
+    setRankingOrder('growth');
+  };
 
   return (
     <section className={styles.dashboard} aria-labelledby={titleId}>
@@ -80,6 +92,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
         </section>
 
         <section className={styles.filters} aria-label={`${c.country} · ${c.period}`}>
+          <button type="button" className={styles.marketPreset} onClick={openIndonesiaMarket}><Globe2 size={16} aria-hidden="true" />{c.indonesiaMarket}<span aria-hidden="true">↗</span></button>
           <div className={styles.filterGrid}>
             <label><span><Globe2 size={15} aria-hidden="true" />{c.country}</span><select value={filters.country} onChange={e => change('country', e.target.value)}>{countries.map(code => <option key={code} value={code}>{countryName(code)}</option>)}</select></label>
             <label><span>{c.period}</span><select value={filters.days} onChange={e => change('days', Number(e.target.value) as ChartFilters['days'])}>{periods.map(days => <option key={days} value={days}>{c.days.replace('{days}', String(days))}</option>)}</select></label>
@@ -113,11 +126,11 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
 
         <div className={styles.chartsGrid}>
           <section className={styles.panel} aria-busy={state === 'loading'}>
-            <div className={styles.panelHeader}><div><span className={styles.sectionKicker}>PICNIC CHART</span><h2>{c.ranking}</h2></div><span className={styles.tag}>{selectedLabel}</span></div>
+            <div className={styles.panelHeader}><div><span className={styles.sectionKicker}>PICNIC CHART</span><h2>{c.ranking}</h2></div><label className={styles.rankingOrder}><span className={styles.srOnly}>{c.orderBy}</span><select value={rankingOrder} onChange={e => setRankingOrder(e.target.value === 'growth' ? 'growth' : 'metric')}><option value="metric">{c.rankOrder}</option><option value="growth">{c.growthOrder}</option></select></label></div>
             <div className={styles.tableScroll} tabIndex={0} role="region" aria-label={c.ranking}><table className={styles.ranking}><caption className={styles.srOnly}>{c.ranking} · {selectedLabel}</caption><thead><tr><th scope="col">#</th><th scope="col">{c.name}</th><th scope="col">{c.value}</th><th scope="col">{c.growth}</th></tr></thead><tbody>
-              {snapshot?.rankings.map((row, index) => {
+              {displayedRows.map((row) => {
                 const name = row.name[locale] || row.name.en || row.name.ko || Object.values(row.name)[0] || '—';
-                return <tr key={row.id}><td><span className={index < 3 ? styles.topRank : styles.rank}>{row.rank ?? '—'}</span></td><th scope="row"><div className={styles.artistCell}><ArtistAvatar key={row.image_url ?? ''} name={name} image={row.image_url} /><div><strong>{name}</strong><span>{row.entity === 'group' ? row.gender ? c[row.gender] : c.unknownGender : c.artist}</span><div className={styles.track} aria-hidden="true">{row.value.status === 'available' && <div style={{ width: `${((row.value.value ?? 0) / max) * 100}%` }} />}</div></div></div></th><td className={styles.numeric}>{textCell(row.value)}</td><td className={styles.growth}>{textCell(row.growth_pct, true)}</td></tr>;
+                return <tr key={row.id}><td><span className={row.rank !== null && row.rank <= 3 ? styles.topRank : styles.rank}>{row.rank ?? '—'}</span></td><th scope="row"><div className={styles.artistCell}><ArtistAvatar key={row.image_url ?? ''} name={name} image={row.image_url} /><div><strong>{name}</strong><span>{row.entity === 'group' ? row.gender ? c[row.gender] : c.unknownGender : c.artist}</span><div className={styles.track} aria-hidden="true">{row.value.status === 'available' && <div style={{ width: `${((row.value.value ?? 0) / max) * 100}%` }} />}</div></div></div></th><td className={styles.numeric}>{textCell(row.value)}</td><td className={styles.growth}>{textCell(row.growth_pct, true)}</td></tr>;
               })}
               {!snapshot?.rankings.length && <tr><td colSpan={4} className={styles.emptyCell}><BarChart3 size={32} aria-hidden="true" /><p>{state === 'loading' ? c.loading : state === 'error' ? c.error : snapshot?.status === 'suppressed' ? c.suppressed : c.empty}</p></td></tr>}
             </tbody></table></div>

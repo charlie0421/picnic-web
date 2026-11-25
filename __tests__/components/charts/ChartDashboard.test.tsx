@@ -37,6 +37,30 @@ describe('public chart experience', () => {
     expect(within(table).getByText(copy.suppressed)).toBeInTheDocument();
     expect(screen.getByText(copy.sampleBadge, { selector: 'span' })).toBeInTheDocument();
   });
+  it('opens the Indonesian girl-group market and orders published rows by growth', async () => {
+    const base = fixture();
+    const row = base.rankings[0];
+    const fetcher = vi.fn().mockResolvedValueOnce(Response.json(base)).mockResolvedValueOnce(Response.json({
+      ...base, available_countries: ['ALL','ID'], period: { ...base.period, days: 30, start: new Date(Date.parse(base.period.end) - 30 * 86400000).toISOString().slice(0,10) },
+      filters: { ...base.filters, country: 'ID', entity: 'group', group_mode: 'member_rollup', group_gender: 'female' },
+      rankings: [
+        { ...row, entity: 'group', gender: 'female', name: { en: 'Group One' }, growth_pct: { status: 'available', value: 5 } },
+        { ...row, id: '2', entity: 'group', gender: 'female', name: { en: 'Group Two' }, rank: 2, growth_pct: { status: 'available', value: 40 } },
+      ]
+    }));
+    vi.stubGlobal('fetch', fetcher);
+    render(<ChartDashboard locale="en" copy={copy} />);
+    await screen.findByText('Test Artist');
+    fireEvent.click(screen.getByRole('button', { name: copy.indonesiaMarket }));
+    await screen.findByText('Group Two');
+    const rows = () => screen.getAllByRole('rowheader').map(cell => cell.textContent);
+    expect(rows()[0]).toContain('Group Two');
+    expect(screen.getByLabelText(copy.country)).toHaveValue('ID');
+    expect(screen.getByLabelText(copy.gender)).toHaveValue('female');
+    fireEvent.change(screen.getByLabelText(copy.orderBy), { target: { value: 'metric' } });
+    expect(rows()[0]).toContain('Group One');
+    expect(fetcher).toHaveBeenCalledTimes(2);
+  });
   it('identifies rankings that use existing profile countries', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ...fixture(), country_basis: 'profile_at_publication' })));
     render(<ChartDashboard locale="en" copy={copy} />);

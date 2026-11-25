@@ -47,3 +47,8 @@
 .sampleBarRow strong { text-align: end; font-variant-numeric: tabular-nums; }
 .sampleBarTrack { background: #e6def0; height: .55rem; border-radius: 1rem; overflow: hidden; }
 .sampleBarTrack i { display: block; height: 100%; border-radius: inherit; background: #7655a3; }
+
+.marketPreset { display: inline-flex; align-items: center; gap: 8px; margin-bottom: 17px; padding: 7px 12px; border-radius: 16px; background: #f1ebfa; color: #503072; font-size: 13px; font-weight: 650; text-align: start; }
+.marketPreset:hover, .marketPreset:focus-visible { background: #e8dbf8; }
+.rankingOrder { min-width: 0; max-width: 50%; }
+.rankingOrder select { width: 100%; max-width: 13rem; padding: 7px; border: 1px solid var(--line); border-radius: 7px; background: #fff; color: var(--ink); font-size: 12px; }
