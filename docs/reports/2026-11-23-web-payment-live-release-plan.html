@@ -81,7 +81,8 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <p>We need to compare a delayed capture with the matching sale row's <code>transaction_id</code> and <code>transaction_completion_date</code>. Please confirm whether the field records the first completion and whether a later refund can change it. Please also confirm if a supported API can return the same completion time before the daily report is available.</p>
 </blockquote>
 <h2 id="portone-kr-test">국내 포트원 결제 · 2026-11-25</h2>
-<p>대상은 KG이니시스와 카카오페이의 원화 결제다. 현재 고객 화면에서 포트원을 선택할 수 없다. 어사이드에서 포트원 관리자 주소를 열었을 때 로그인 화면이 표시됐다. 두 가맹점 테스트 채널의 발급 상태와 수동 승인 설정은 아직 확인하지 못했다.</p>
+<p>2026-11-25 10:39 KST에 PICNIC 관리자 초대 주소로 로그인한 주식회사 아이콘캐스팅 콘솔에서 확인했다. 2025-07-04에 신청한 KG이니시스 신용카드 일반결제는 <strong>입점 심사중</strong>, 카카오페이 간편결제 일반결제는 <strong>PG사 접수 완료</strong>로 표시됐다. 두 신청 모두 진행 중이다. <a href="https://admin.portone.io/application/list">전자결제 신청 내역</a></p>
+<p>대표상점에는 실연동 채널이 0개이고 테스트 채널은 토스페이먼츠 결제창 일반결제 1개다. 채널 추가 화면은 계약 전 테스트 연동을 지원한다고 안내한다. KG이니시스 국내 일반결제 V2와 카카오페이 간편결제 V2의 테스트 양식을 각각 열었다. 두 양식 모두 <strong>수동 승인 사용</strong> 항목을 제공하며 초기값은 <strong>사용 안함</strong>이다. 양식을 저장하지 않고 닫은 뒤 채널 수를 다시 확인했다. <a href="https://admin.portone.io/integration/manage">채널 관리</a></p>
 <p>포트원 V2는 채널별로 수동 승인을 켠다. 이 채널의 결제창 응답에는 <code>paymentToken</code>이 들어오며, 서버가 이 값을 사용해 승인을 요청한다. 기존 <code>confirmUrl</code>은 별도의 컨펌 프로세스에 쓰인다. <a href="https://developers.portone.io/opi/ko/extra/manual-confirm/readme-v2?v=v2">포트원 수동 승인 안내</a></p>
 <p>기존 브라우저 어댑터에서 실패 코드가 생략된 정상 응답을 <code>PAYMENT_FAILED</code>로 처리하는 문제를 모의 SDK로 재현했다. 수정본은 요청과 같은 결제 ID에 오류 코드가 없으면 결제창 응답을 인식한다. 다른 결제 ID는 거부한다. 수동 승인 토큰을 받으면 서버 승인 대기로 반환한다. 토큰은 호출자에게 반환하지 않는다. 실제 청구와 별사탕 지급 여부는 서버가 확인한다. <a href="https://developers.portone.io/opi/ko/integration/start/v2/checkout">포트원 결제창 응답과 서버 검증</a></p>
 <ul>
@@ -90,7 +91,7 @@ code{overflow-wrap:anywhere}a{color:#175a87}
 <li>별도 Deno 검증기 시험 13개가 통과했다. 과거 8단계 계약용 통합 실행기는 현재 워커의 v2 claim RPC를 거부했다. 이 실행의 DB 컨테이너도 제거됐으며 위 통과 건수에서 제외했다.</li>
 </ul>
 <p>전체 웹 회귀 시험은 7,279개 통과, 로컬 Next.js 빌드 결과에 의존하는 시험 1개 건너뜀이다. 첫 실행에서 임시 디렉터리의 자식 프로세스가 네트워크 차단 모듈의 상대 경로를 찾지 못해 진단 시험 5개가 실패했다. 같은 모듈의 절대 경로로 재실행했다. TypeScript 검사와 변경 코드 린트도 통과했다. 독립 리뷰는 브라우저 응답 처리에서 차단 결함을 발견하지 못했다. 수동 승인 토큰이 명시적으로 <code>null</code>인 응답도 현재는 승인 대기로 처리한다.</p>
-<p>실제 채널 시험을 시작하려면 먼저 가맹점 콘솔에서 각 테스트 채널의 수동 승인 설정을 확인한다. 현재 화면은 브라우저에서 결제 ID와 금액을 구성한다. 결제창에 서버 주문의 ID·금액·통화·채널을 전달하고, 소유자와 견적을 확인하는 서버 승인 경로를 연결해야 한다. 이후 테스트 상점에서 결제 승인·독립 조회·웹훅 처리·지급 한 번·환불과 회수를 같은 주문으로 대조한다. 실제 채널에서의 청구와 고객 개방은 대기 상태다.</p>
+<p>다음 단계는 승인된 테스트용 가맹점 정보로 두 테스트 채널을 등록하고, 각 채널에서 수동 승인을 ‘사용’으로 저장한 뒤 다시 조회하는 것이다. 현재 화면은 브라우저에서 결제 ID와 금액을 구성한다. 결제창에 서버 주문의 ID·금액·통화·채널을 전달하고, 소유자와 견적을 확인하는 서버 승인 경로를 연결해야 한다. 이후 테스트 상점에서 결제 승인·독립 조회·웹훅 처리·지급 한 번·환불과 회수를 같은 주문으로 대조한다. 현재 고객 화면에서 포트원을 선택할 수 없다.</p>
 <h2>로컬 웹 회귀 검증</h2>
 <p>배포 준비 점검에서 W <code>fed8bbdc</code>의 <code>npm run build</code>가 통과했다. 운영 자격 증명 없이 로컬 Supabase 응답과 캐시한 공개 폰트로 빌드했다. 같은 빌드를 구동해 기존 PayPal API 410 응답 두 건, 타 Origin 403, 동일 Origin의 미인증 401, 내부 대사 secret이 없을 때 503을 확인했다. 다섯 요청의 fixture 호출은 0건이었다. 처음 사용한 <code>127.0.0.1</code> Origin은 Next.js의 <code>localhost</code> 정규화로 거부됐다. <code>localhost</code> 요청으로 다시 확인했다.</p>
 <p>D <code>9c6a3256</code>과 원격 <code>main</code> <code>60e0be29</code>의 병합 트리에 충돌이 없었다. 해당 트리에서 외부 네트워크를 차단한 Deno 지갑 시험 735개가 통과했다. 별도 로컬 DB가 필요한 광고 시험 파일 하나는 이 실행의 범위 밖이었다. W 검증 SHA로 Vercel Preview를 조회한 결과는 0건이었다. 후보 브랜치 두 개와 PR은 원격에 없었다. 배포 준비 검증 기록 SHA256은 <code>4d407bb546ef3597568d50dce35ff96777e83450e52942e7afee4d834e5f3859</code>이다.</p>
