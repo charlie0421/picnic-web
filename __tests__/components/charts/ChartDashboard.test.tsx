@@ -37,6 +37,13 @@ describe('public chart experience', () => {
     expect(within(table).getByText(copy.suppressed)).toBeInTheDocument();
     expect(screen.getByText(copy.sampleBadge, { selector: 'span' })).toBeInTheDocument();
   });
+  it('identifies rankings that use existing profile countries', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json({ ...fixture(), country_basis: 'profile_at_publication' })));
+    render(<ChartDashboard locale="en" copy={copy} />);
+    await screen.findByText('Test Artist');
+    expect(screen.getByText(copy.profileCountryNote)).toBeInTheDocument();
+    expect(screen.queryByText(copy.countryNote)).toBeNull();
+  });
   it('always offers a same-origin localized inquiry route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));
     render(<ChartDashboard locale="ko" copy={copy} />);

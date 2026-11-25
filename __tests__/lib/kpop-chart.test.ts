@@ -19,6 +19,11 @@ describe('public chart boundary', () => {
     expect(chartFreshness(publication, Date.parse('2026-11-27T01:59:59Z'))).toBe('stale');
     expect(chartFreshness(publication, Date.parse('2026-11-27T02:00:00Z'))).toBe('expired');
   });
+  it('keeps the country attribution of a release and rejects unsupported methods', () => {
+    expect(parseChartSnapshot({ ...fixture(), country_basis: 'profile_at_publication' }, filters).country_basis).toBe('profile_at_publication');
+    expect(parseChartSnapshot(fixture(), filters).country_basis).toBe('vote_time_verified');
+    expect(() => parseChartSnapshot({ ...fixture(), country_basis: 'nationality' }, filters)).toThrow();
+  });
   it('rejects unsupported filters instead of broadening the data request', () => {
     expect(parseChartFilters(new URLSearchParams('days=365'))).toBeNull();
     expect(parseChartFilters(new URLSearchParams('country=kr'))).toBeNull();

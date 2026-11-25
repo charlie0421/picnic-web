@@ -13,6 +13,7 @@ export interface ChartFilters {
 export interface ChartCell { status: 'available' | 'suppressed' | 'unavailable'; value: number | null }
 export interface ChartSnapshot {
   schema_version: 1;
+  country_basis: 'profile_at_publication' | 'vote_time_verified';
   status: 'ready' | 'empty' | 'suppressed';
   published_at: string | null;
   refresh_due_at: string | null;
@@ -75,6 +76,8 @@ export function parseChartFilters(params: URLSearchParams): ChartFilters | null 
 export function parseChartSnapshot(input: unknown, expected: ChartFilters): ChartSnapshot {
   const data = record(input);
   if (data.schema_version !== 1 || !['ready', 'empty', 'suppressed'].includes(String(data.status))) throw new Error('Unsupported chart contract');
+  const countryBasis = data.country_basis === undefined ? 'vote_time_verified' : data.country_basis;
+  if (countryBasis !== 'profile_at_publication' && countryBasis !== 'vote_time_verified') throw new Error('Unsupported chart country attribution');
   const filters = record(data.filters);
   for (const key of ['country', 'entity', 'group_mode', 'group_gender', 'metric'] as const) {
     if (filters[key] !== expected[key]) throw new Error('Chart filter mismatch');
@@ -104,7 +107,7 @@ export function parseChartSnapshot(input: unknown, expected: ChartFilters): Char
     return { date: day, value: cell(row.value) };
   });
   if (new Set(rankings.map(row => row.id)).size !== rankings.length || series.some((point, index) => index > 0 && point.date <= series[index - 1].date)) throw new Error('Duplicate or unordered chart rows');
-  return { schema_version: 1, status: data.status as ChartSnapshot['status'], published_at: published, refresh_due_at: due, period: { start, end, days: expected.days }, filters: { country: expected.country, entity: expected.entity, group_mode: expected.group_mode, group_gender: expected.group_gender, metric: expected.metric }, available_countries: Array.from(new Set(data.available_countries as string[])), available_days: Array.from(new Set(data.available_days as (7 | 30 | 90)[])), summary: cleanSummary, rankings, series };
+  return { schema_version: 1, country_basis: countryBasis, status: data.status as ChartSnapshot['status'], published_at: published, refresh_due_at: due, period: { start, end, days: expected.days }, filters: { country: expected.country, entity: expected.entity, group_mode: expected.group_mode, group_gender: expected.group_gender, metric: expected.metric }, available_countries: Array.from(new Set(data.available_countries as string[])), available_days: Array.from(new Set(data.available_days as (7 | 30 | 90)[])), summary: cleanSummary, rankings, series };
 }
 
 export function chartHref(locale: string, hostname?: string): string {

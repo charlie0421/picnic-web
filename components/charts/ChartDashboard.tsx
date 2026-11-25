@@ -79,7 +79,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
           <div className={styles.publication}><span>{c.published}</span><strong>{snapshot?.published_at ? `${formatDate(snapshot.published_at)} UTC` : c.unpublished}</strong></div>
         </section>
 
-        <section className={styles.filters} aria-label={c.metric}>
+        <section className={styles.filters} aria-label={`${c.country} · ${c.period}`}>
           <div className={styles.filterGrid}>
             <label><span><Globe2 size={15} aria-hidden="true" />{c.country}</span><select value={filters.country} onChange={e => change('country', e.target.value)}>{countries.map(code => <option key={code} value={code}>{countryName(code)}</option>)}</select></label>
             <label><span>{c.period}</span><select value={filters.days} onChange={e => change('days', Number(e.target.value) as ChartFilters['days'])}>{periods.map(days => <option key={days} value={days}>{c.days.replace('{days}', String(days))}</option>)}</select></label>
@@ -91,6 +91,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
             <label className={styles.gender}><span>{c.gender}</span><select value={filters.group_gender} onChange={e => change('group_gender', e.target.value as ChartFilters['group_gender'])}><option value="all">{c.allGenders}</option>{(['male', 'female', 'mixed'] as const).map(gender => <option key={gender} value={gender}>{c[gender]}</option>)}</select></label>
           </div>}
           <div className={styles.periodCaption}><span>{snapshot && lastDay ? `${formatDate(snapshot.period.start)} – ${formatDate(lastDay)} · UTC` : c.periodNote}</span><span>{filters.entity === 'artist' ? c.artistNote : c.groupNote}</span></div>
+          {snapshot?.published_at && <p className={styles.dailyNote}>{snapshot.country_basis === 'profile_at_publication' ? c.profileCountryNote : c.countryNote}</p>}
         </section>
 
         <div aria-live="polite" aria-atomic="true" className={styles.status}>
@@ -131,7 +132,7 @@ export default function ChartDashboard({ locale, copy: c }: { locale: string; co
           </section>
         </div>
 
-        <section className={styles.methodology} aria-labelledby="chart-methodology"><div><Info size={18} aria-hidden="true" /><h2 id="chart-methodology">{c.methodology}</h2></div><p>{c.coverage}</p><div className={styles.methodGrid}><p>{c.countryNote}</p><p>{c.periodNote}</p><p>{c.votersNote} {c.growthNote}</p><p>{c.purchaserNote}</p><p>{c.groupNote}</p><p>{c.privacyNote}</p></div></section>
+        <section className={styles.methodology} aria-labelledby="chart-methodology"><div><Info size={18} aria-hidden="true" /><h2 id="chart-methodology">{c.methodology}</h2></div><p>{c.coverage}</p><div className={styles.methodGrid}><p>{c.periodNote}</p><p>{c.votersNote} {c.growthNote}</p><p>{c.purchaserNote}</p><p>{c.groupNote}</p><p>{c.privacyNote}</p></div></section>
 
         <div className={styles.businessGrid}>
           <section className={styles.business}><Building2 size={25} aria-hidden="true" /><span className={styles.sectionKicker}>PICNIC FOR BUSINESS</span><h2>{c.b2bTitle}</h2><p>{c.b2bBody}</p><a href={`/${locale}/charts/business`}>{c.b2bAction}</a></section>
