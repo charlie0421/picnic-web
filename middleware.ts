@@ -2,7 +2,7 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { STATIC_ASSET_PATH, decideLocaleRoute } from './lib/i18n/locale-routing';
+import { AUTH_CALLBACK_PATH, STATIC_ASSET_PATH, decideLocaleRoute } from './lib/i18n/locale-routing';
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
@@ -79,6 +79,15 @@ export async function middleware(req: NextRequest) {
       return NextResponse.redirect(target);
     }
   } catch (_) {}
+
+  // OAuth 콜백(/auth/callback, /auth/callback/<provider>)에서는 기존 세션을 건드리지 않는다.
+  // 이 요청에는 로그인을 마칠 PKCE 코드 검증값 쿠키가 실려 있다. 브라우저에 폐기된 세션 쿠키가 남아 있으면
+  // 아래 getClaims 의 갱신이 실패하고, auth-js 가 세션을 지우면서 검증값 쿠키까지 지운다. 그러면
+  // /api/auth/callback 의 코드 교환이 실패해 사용자는 쿠키를 직접 지우기 전까지 로그인할 수 없다.
+  // 콜백 페이지는 코드를 /api/auth/callback 으로 넘기기만 하고, 탈퇴 계정 차단은 그 라우트가 한다.
+  if (AUTH_CALLBACK_PATH.test(req.nextUrl.pathname)) {
+    return res;
+  }
 
   const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
