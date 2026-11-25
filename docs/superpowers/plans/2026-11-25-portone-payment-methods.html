@@ -16,7 +16,7 @@ th{background:#edf2f6}code,pre{font-family:ui-monospace,monospace}code{overflow-
 <p>2026년 11월 25일 설계 검토안. 별사탕 구매 화면에서 고객이 가맹점 결제창에 표시된 수단을 선택하면 같은 주문으로 결제, 지급, 전액 환불, 회수를 처리한다. TEST와 LIVE는 같은 처리 규칙을 사용한다. 주문, 채널 자격 증명, 알림과 원장은 환경별로 구분한다.</p>
 <h2>기준과 적용 범위</h2>
 <p>검토 기준은 웹 후보 <code>f4943425</code>, DB 후보 <code>cae5f75d</code>, 웹 원격 main <code>250d14dc</code>다. 배포된 웹의 실제 커밋은 확인 대기 중이다. 11월 25일 확인 기록에는 KG이니시스, 카카오페이, 기존 토스페이먼츠 TEST 채널이 있으며 실연동 채널은 0개였다. 가맹점에서 활성화한 수단과 기기별 동작은 채널별로 확인한다. <a href="../../reports/2026-11-23-web-payment-live-release-plan.html">채널과 실카드 시험 기록</a></p>
-<p>카드, 간편결제, 계좌이체, 가상계좌, 휴대폰 결제, 상품권 등 가맹점이 제공하는 일회성 결제가 대상이다. PG가 통합 선택창을 제공하면 고객은 그 안에서 수단을 고른다. SDK가 호출 전에 결제수단을 요구하면 PICNIC에서 해당 채널의 수단을 먼저 선택하게 한다. 전용 카카오페이 채널과 KG 결제창 안의 카카오페이는 서로 다른 채널로 기록한다. 실제 제휴 여부는 환경별 가맹점 설정으로 결정한다. <a href="https://developers.portone.io/opi/ko/integration/pg/v2/inicis-v2">KG이니시스 연동</a> · <a href="https://developers.portone.io/opi/ko/integration/pg/v2/kakaopay">카카오페이 연동</a></p>
+<p>카드, 간편결제, 계좌이체, 가상계좌, 휴대폰 결제, 상품권 등 가맹점이 제공하는 일회성 결제가 대상이다. 고객은 TEST와 LIVE 모두 포트원·PG 통합 결제창에서 수단을 고른다. PICNIC은 추가 선택을 요구하지 않는다. 서버는 결제창을 열 때 주문과 채널을 고정하고, 결제 후에는 포트원에서 확인한 실제 수단을 기록한다. SDK 호출에 지정한 값과 통합창에서 실제로 사용한 수단은 구분한다. 통합창에 표시되는 수단과 응답 형식은 채널별로 확인한다. 전용 카카오페이 채널과 KG 결제창 안의 카카오페이는 서로 다른 채널로 기록한다. 실제 제휴 여부는 환경별 가맹점 설정으로 결정한다. <a href="https://developers.portone.io/opi/ko/integration/pg/v2/inicis-v2">KG이니시스 연동</a> · <a href="https://developers.portone.io/opi/ko/integration/pg/v2/kakaopay">카카오페이 연동</a></p>
 <h2>설계 결정</h2>
 <p>기존 운영 화면의 카드 요청만 바꾸면 새 주문과 환불 원장에 연결되지 않는다. TEST의 카드 판정을 완화하는 방법도 모바일 복귀, 입금 대기, 운영 대사를 해결하지 못한다. 서버 주문에 결제 경로를 고정하고 결제사별 호출 방식을 분리한다. 주문과 지갑의 기존 지급·환불 절차를 재사용한다.</p>
 <table><thead><tr><th>시점</th><th>서버의 처리</th><th>고객 결과</th></tr></thead><tbody>
