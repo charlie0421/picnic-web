@@ -1,0 +1,129 @@
+# Preview 배포가 끝나면 고정 주소 preview.picnic.fan 을 그 배포로 옮긴다.
+#
+# Vercel 은 브랜치마다 다른 Preview 주소를 만든다. 이 워크플로는 가장 최근에 만든 Preview 배포를
+# 주소 하나로 볼 수 있게 한다. PR 이 여러 개 열려 있으면 마지막에 만든 배포가 보인다.
+# 이 주소도 Vercel 인증 보호 안에 있다. Vercel 팀 계정으로 로그인해야 열린다.
+#
+# 필요한 설정:
+# - secrets.VERCEL_TOKEN: 팀 범위의 Vercel 토큰. 이 워크플로만 쓴다.
+# - vars.VERCEL_TEAM_ID, vars.VERCEL_PROJECT_ID: .vercel/project.json 의 orgId 와 projectId.
+# - DNS: preview.picnic.fan 의 CNAME 은 cname.vercel-dns.com 이다.
+#
+# 안전 규칙:
+# - deployment_status 이벤트의 워크플로는 기본 브랜치의 이 파일로 실행된다. 스크립트를 이 파일 안에 두고
+#   checkout 을 하지 않는다. PR 브랜치의 코드가 토큰을 읽을 수 없게 하기 위해서다.
+# - run 블록 안에는 표현식을 쓰지 않는다. 이벤트 값은 env 로만 넘긴다.
+# - 동작 검사: __tests__/scripts/preview-alias-workflow.test.ts
+name: Preview 고정 주소
+
+on:
+  deployment_status:
+
+permissions: {}
+
+# 한 번에 하나만 실행한다. 기다리는 실행이 여러 개면 GitHub 가 마지막 것만 남긴다.
+concurrency:
+  group: preview-alias
+  cancel-in-progress: false
+
+jobs:
+  alias:
+    name: preview.picnic.fan 연결
+    if: >-
+      github.event.deployment_status.state == 'success' &&
+      startsWith(github.event.deployment.environment, 'Preview') &&
+      github.event.deployment.creator.login == 'vercel[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: 최신 Preview 배포로 주소 옮기기
+        env:
+          VERCEL_API: https://api.vercel.com
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          DEPLOYMENT_URL: ${{ github.event.deployment_status.environment_url }}
+          REPOSITORY: ${{ github.repository }}
+          ALIAS: preview.picnic.fan
+        run: |
+          set -euo pipefail
+
+          fail() { echo "::error::$1"; exit 1; }
+          skip() { echo "::notice::$1"; exit 0; }
+          lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+          [ -n "${VERCEL_TOKEN:-}" ] || fail 'secrets.VERCEL_TOKEN 이 없습니다.'
+          [[ "${TEAM_ID:-}" =~ ^[A-Za-z0-9_]+$ ]] || fail 'vars.VERCEL_TEAM_ID 가 없거나 형식이 다릅니다.'
+          [[ "${PROJECT_ID:-}" =~ ^[A-Za-z0-9_]+$ ]] || fail 'vars.VERCEL_PROJECT_ID 가 없거나 형식이 다릅니다.'
+          [[ "${ALIAS:-}" =~ ^[a-z0-9.-]+$ ]] || fail '고정 주소의 형식이 다릅니다.'
+
+          host="${DEPLOYMENT_URL#https://}"
+          host="${host%/}"
+          [[ "$host" =~ ^[a-z0-9-]+\.vercel\.app$ ]] || fail '배포 주소가 Vercel 배포 주소의 형식이 아닙니다.'
+
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          # call <METHOD> <path> [body]: HTTP 상태 코드를 출력하고 응답 본문을 $work/body.json 에 쓴다.
+          call() {
+            local method="$1" path="$2" body="${3:-}"
+            local args=(--silent --show-error --max-time 30 --request "$method"
+              --header "Authorization: Bearer ${VERCEL_TOKEN}"
+              --output "$work/body.json" --write-out '%{http_code}')
+            if [ -n "$body" ]; then
+              args+=(--header 'Content-Type: application/json' --data "$body")
+            fi
+            curl "${args[@]}" "${VERCEL_API}${path}"
+          }
+
+          # 1. 이 배포가 이 프로젝트의 준비된 Preview 배포인지 Vercel 에서 확인한다.
+          code=$(call GET "/v13/deployments/${host}?teamId=${TEAM_ID}") || fail 'Vercel API 에 연결하지 못했습니다.'
+          [ "$code" = 200 ] || fail "배포를 조회하지 못했습니다 (HTTP ${code})."
+          id=$(jq -r '.id // empty' "$work/body.json")
+          project=$(jq -r '.projectId // empty' "$work/body.json")
+          target=$(jq -r '.target // "preview"' "$work/body.json")
+          state=$(jq -r '.readyState // empty' "$work/body.json")
+          created=$(jq -r '.createdAt // 0' "$work/body.json")
+          source_repo=$(jq -r '"\(.meta.githubCommitOrg // "")/\(.meta.githubCommitRepo // "")"' "$work/body.json")
+
+          [ "$project" = "$PROJECT_ID" ] || skip '다른 프로젝트의 배포입니다. 주소를 옮기지 않습니다.'
+          [ "$target" != production ] || skip 'Production 배포입니다. 주소를 옮기지 않습니다.'
+          [ "$(lower "$source_repo")" = "$(lower "$REPOSITORY")" ] || skip '다른 저장소의 커밋으로 만든 배포입니다. 주소를 옮기지 않습니다.'
+          [ "$state" = READY ] || fail "배포가 준비 상태가 아닙니다 (${state:-알 수 없음})."
+          [[ "$id" =~ ^dpl_[A-Za-z0-9]+$ ]] || fail '배포 ID 의 형식이 다릅니다.'
+          [[ "$created" =~ ^[0-9]+$ ]] || created=0
+
+          # 2. 지금 주소가 더 새로운 배포를 가리키면 그대로 둔다. 늦게 끝난 옛 배포가 주소를 되돌리지 않게 한다.
+          code=$(call GET "/v4/aliases/${ALIAS}?teamId=${TEAM_ID}") || fail 'Vercel API 에 연결하지 못했습니다.'
+          case "$code" in
+            200)
+              current=$(jq -r '.deploymentId // empty' "$work/body.json")
+              if [ "$current" = "$id" ]; then
+                skip "${ALIAS} 은 이미 이 배포를 가리킵니다."
+              fi
+              if [[ "$current" =~ ^dpl_[A-Za-z0-9]+$ ]]; then
+                code=$(call GET "/v13/deployments/${current}?teamId=${TEAM_ID}") || fail 'Vercel API 에 연결하지 못했습니다.'
+                if [ "$code" = 200 ]; then
+                  current_created=$(jq -r '.createdAt // 0' "$work/body.json")
+                  [[ "$current_created" =~ ^[0-9]+$ ]] || current_created=0
+                  if [ "$current_created" -gt "$created" ]; then
+                    skip "${ALIAS} 은 더 새로운 배포를 가리킵니다. 주소를 옮기지 않습니다."
+                  fi
+                fi
+              fi
+              ;;
+            404) ;;
+            *) fail "지금의 연결을 조회하지 못했습니다 (HTTP ${code})." ;;
+          esac
+
+          # 3. 주소를 이 배포로 옮긴다.
+          code=$(call POST "/v2/deployments/${id}/aliases?teamId=${TEAM_ID}" "{\"alias\":\"${ALIAS}\"}") || fail 'Vercel API 에 연결하지 못했습니다.'
+          if [ "$code" != 200 ]; then
+            reason=$(jq -r '.error.code // "unknown"' "$work/body.json" 2>/dev/null || echo unknown)
+            fail "주소를 옮기지 못했습니다 (HTTP ${code}, ${reason})."
+          fi
+
+          echo "${ALIAS} -> ${host}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo "\`${ALIAS}\` 이 \`${host}\` 을 가리킵니다." >> "$GITHUB_STEP_SUMMARY"
+          fi
