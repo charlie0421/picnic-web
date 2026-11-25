@@ -46,7 +46,7 @@ async function parsePost(request: NextRequest, action: Action): Promise<{ txId?:
   if (!shape.test(text)) return null;
   try {
     const d = JSON.parse(text) as Record<string, unknown>;
-    return boundedId(d.txId) && typeof d.paymentToken === 'string' && /^[\x21-\x7e]{1,2048}$/.test(d.paymentToken)
+    return boundedId(d.txId) && typeof d.paymentToken === 'string' && /^[\x21-\x7e]{1,2048}(?![\s\S])/.test(d.paymentToken)
       ? { txId: d.txId, paymentToken: d.paymentToken } : null;
   } catch { return null; }
 }

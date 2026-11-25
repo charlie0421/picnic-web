@@ -34,6 +34,7 @@ describe('PortOne TEST order HTTP boundary', () => {
   });
   it.each(['{}', '{"txId":"tx-test","paymentToken":"x","actorUserId":"x"}',
     '{"txId":"x","txId":"y","paymentToken":"x"}', '{"txId":"x","paymentToken":"x","paymentId":"x"}',
+    '{"txId":"x\\n","paymentToken":"x"}', '{"txId":"x","paymentToken":"x\\n"}',
     '{"txId":"x","paymentToken":"x"}\n{}', 'x'.repeat(4097)])('rejects ambiguous or malformed confirmation before auth: %s', async body => {
     expect((await createPortOneTestOrderHandler('confirm')(request(body), params)).status).toBe(400);
     expect(mocks.session).not.toHaveBeenCalled(); expect(mocks.confirm).not.toHaveBeenCalled();

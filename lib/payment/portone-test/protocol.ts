@@ -11,9 +11,10 @@ type VerifiedPayment = { status: 'READY' | 'PAID'; paymentId: string; transactio
 export function record(value: unknown): Record<string, unknown> | null {
   return value !== null && typeof value === 'object' && !Array.isArray(value) ? value as Record<string, unknown> : null;
 }
-export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
+// An absolute end assertion also rejects a trailing newline, unlike JavaScript's `$`.
+export const UUID = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}(?![\s\S])/;
 export function boundedId(value: unknown): value is string {
-  return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,200}$/.test(value);
+  return typeof value === 'string' && /^[A-Za-z0-9._:-]{1,200}(?![\s\S])/.test(value);
 }
 export function live(value: string, now: number): boolean { return Number.isFinite(Date.parse(value)) && Date.parse(value) > now; }
 export function assessPortOnePayment(value: unknown, context: ChargeContext, config: PortOneTestConfig, txId?: string): VerifiedPayment | null {

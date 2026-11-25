@@ -57,6 +57,8 @@ describe('PortOne TEST server checkout', () => {
       { PORTONE_TEST_API_SECRET: '' }, { VERCEL_ENV: 'preview' }, { PORTONE_TEST_CHANNEL_CONFIG: '{}' }]) {
       expect(readPortOneTestConfig({ ...env, ...changed })).toBeNull();
     }
+    expect(readPortOneTestConfig({ ...env, PORTONE_TEST_CHANNEL_CONFIG: JSON.stringify({ ...scope,
+      channelKey: 'key\n', method: 'CARD', credentialRef: 'portone-test', bindingVersion: '1' }) })).toBeNull();
     expect(readPortOneTestConfig({ NODE_ENV: 'test', PORTONE_API_SECRET: 'legacy' })).toBeNull();
   });
   it('releases a frozen checkout only after a repeatable real entry decision', async () => {
@@ -81,7 +83,7 @@ describe('PortOne TEST server checkout', () => {
   });
   it.each([
     { channel: undefined }, { channel: { id: scope.channel_id, type: 'TEST' } }, { transactionId: 'other-tx' },
-    { storeId: 'other' }, { merchantId: 'other' }, { version: 'V1' }, { status: 'PENDING' }, { currency: 'USD' },
+    { storeId: 'other' }, { merchantId: 'other' }, { transactionId: 'tx-test\n' }, { version: 'V1' }, { status: 'PENDING' }, { currency: 'USD' },
     { customData: JSON.stringify({ version: 'v2', order_id: ORDER, user_id: USER }) }, { amount: { total: 1001 } },
   ])('never claims or submits a malformed or mismatched preconfirm observation %j', async changed => {
     const h = harness(); h.transport.getPayment.mockResolvedValue({ ...payment(), ...changed } as any);
