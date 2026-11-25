@@ -1,7 +1,12 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
 
-const auth = vi.hoisted(() => ({ getUser: vi.fn(), create: vi.fn() }));
+const auth = vi.hoisted(() => ({ getUser: vi.fn(), create: vi.fn(), from: vi.fn(), select: vi.fn(), eq: vi.fn(), profile: vi.fn() }));
+const getChargeContext = vi.hoisted(() => vi.fn());
+vi.mock('@/lib/payment/paypal-charge/repository', async importOriginal => ({
+  ...(await importOriginal<typeof import('@/lib/payment/paypal-charge/repository')>()),
+  createWebPaymentChargeRepository: () => ({ getChargeContext }),
+}));
 const checkout = vi.hoisted(() => ({
   createClient: vi.fn(), ensure: vi.fn(), capture: vi.fn(), reconcile: vi.fn(), status: vi.fn(),
 }));
@@ -42,7 +47,12 @@ beforeEach(() => {
   vi.clearAllMocks();
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'https://supabase.invalid');
   vi.stubEnv('SUPABASE_SERVICE_ROLE_KEY', 'fixture-service-key');
-  auth.create.mockResolvedValue({ auth: { getUser: auth.getUser } });
+  auth.create.mockResolvedValue({ auth: { getUser: auth.getUser }, from: auth.from });
+  auth.from.mockReturnValue({ select: auth.select });
+  auth.select.mockReturnValue({ eq: auth.eq });
+  auth.eq.mockReturnValue({ maybeSingle: auth.profile });
+  auth.profile.mockResolvedValue({ data: { is_super_admin: true }, error: null });
+  getChargeContext.mockResolvedValue({ kind: 'FOUND', context: { provider: 'PAYPAL', environment: 'SANDBOX' } });
   auth.getUser.mockResolvedValue({ data: { user: { id: USER } }, error: null });
   checkout.createClient.mockReturnValue({});
   checkout.ensure.mockResolvedValue({ kind: 'PROVIDER_ORDER_READY', providerOrderId: PROVIDER_ORDER, replayed: true });
@@ -58,6 +68,30 @@ afterEach(() => {
 });
 
 describe('server-order PayPal routes', () => {
+  it.each(['capture', 'provider-order'] as const)('refuses non-admin sandbox %s before checkout', async path => {
+    auth.profile.mockResolvedValue({ data: { is_admin: false, is_super_admin: false }, error: null });
+    const response = await (await load[path]())(request(path, path === 'capture' ? { approvedProviderOrderId: PROVIDER_ORDER } : {}), param());
+    expect(response.status).toBe(403);
+    expect(getChargeContext).toHaveBeenCalledWith(USER, ORDER);
+    expect(auth.from).toHaveBeenCalledWith('user_profiles');
+    expect(auth.eq).toHaveBeenCalledWith('id', USER);
+    expect(checkout.capture).not.toHaveBeenCalled();
+    expect(checkout.ensure).not.toHaveBeenCalled();
+  });
+
+  it('keeps LIVE checkout independent of the sandbox role', async () => {
+    getChargeContext.mockResolvedValue({ kind: 'FOUND', context: { provider: 'PAYPAL', environment: 'LIVE' } });
+    const response = await (await load['provider-order']())(request('provider-order', {}), param());
+    expect(response.status).toBe(200);
+    expect(auth.from).not.toHaveBeenCalled();
+  });
+
+  it('fails closed on a sandbox profile lookup error', async () => {
+    auth.profile.mockResolvedValue({ data: null, error: { code: 'timeout' } });
+    const response = await (await load.capture())(request('capture', { approvedProviderOrderId: PROVIDER_ORDER }), param());
+    expect(response.status).toBe(503);
+    expect(checkout.capture).not.toHaveBeenCalled();
+  });
   it.each([
     ['provider-order', {}, 'ensure', 'PROVIDER_ORDER_READY'],
     ['capture', { approvedProviderOrderId: PROVIDER_ORDER }, 'capture', 'INTAKE_PENDING'],

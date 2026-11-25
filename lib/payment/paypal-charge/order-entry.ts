@@ -2,6 +2,7 @@ import 'server-only';
 import { createClient } from '@supabase/supabase-js';
 import type { NextRequest } from 'next/server';
 
+import { ADMIN_FLAG_COLUMNS, isAdminProfile } from '@/lib/auth/is-admin';
 import { isServerOrderUuid } from '@/lib/payment/server-order';
 import { createSupabaseServerClient } from '@/lib/supabase/server';
 import { logSafeError, logSafeWarn } from '@/utils/log-safe-error';
@@ -129,7 +130,20 @@ export function createPayPalOrderHandler(action: Action) {
       }
       if (!data.user) return respond({ error: 'AUTHENTICATION_REQUIRED' }, 401);
       if (!uuid(data.user.id)) throw new Error('WEB_PAYMENT_CHARGE_AUTH');
-      const outcome = await execute(action, dependencies(), { actorUserId: data.user.id.toLowerCase(), orderId: id }, input.approved);
+      const actorUserId = data.user.id.toLowerCase();
+      const deps = dependencies();
+      if (action === 'provider-order' || action === 'capture') {
+        // A linked provider order can be returned without making a new DB claim.
+        // Check its immutable environment before releasing the ID to the SDK.
+        const owned = await deps.repository.getChargeContext(actorUserId, id);
+        if (owned.kind === 'NOT_FOUND') return respond(toPayPalChargeBrowserDto(id, { kind: 'NOT_FOUND' }), 404);
+        if (owned.context.environment === 'SANDBOX') {
+          const profile = await session.from('user_profiles').select(ADMIN_FLAG_COLUMNS).eq('id', actorUserId).maybeSingle();
+          if (profile.error) throw new Error('WEB_PAYMENT_PROFILE_UNAVAILABLE');
+          if (!isAdminProfile(profile.data)) return respond({ error: 'WEB_PAYMENT_NOT_AVAILABLE' }, 403);
+        }
+      }
+      const outcome = await execute(action, deps, { actorUserId, orderId: id }, input.approved);
       return respond(toPayPalChargeBrowserDto(id, outcome), outcomeStatuses[outcome.kind]);
     } catch {
       logSafeError('payment.paypal.charge.context.failed', new Error('WEB_PAYMENT_CHARGE_UNAVAILABLE'), { orderId: id });

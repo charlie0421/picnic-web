@@ -8,7 +8,23 @@ vi.mock('@/lib/supabase/server', () => ({
   isWithdrawnUser: async () => false,
 }));
 
-describe('PortOne confirm — 웹 결제가 꺼져 있을 때', () => {
+describe('PortOne legacy confirm', () => {
+  it('cannot authorize a browser-only payment when the checkout UI is enabled', async () => {
+    vi.resetModules();
+    vi.doMock('@/lib/payment/availability', () => ({ PORTONE_WEB_PAYMENT_ENABLED: true }));
+    try {
+      const { POST } = await import('@/app/api/payment/portone/confirm/route');
+      const res = await POST(new NextRequest('https://www.picnic.fan/api/payment/portone/confirm', {
+        method: 'POST', headers: { 'content-type': 'application/json' },
+        body: JSON.stringify({ paymentId: 'pay_1', totalAmount: 1000 }),
+      }));
+      expect(res.status).toBe(403);
+      expect(await res.json()).toEqual({ ok: false, reason: 'portone_disabled' });
+    } finally {
+      vi.doUnmock('@/lib/payment/availability');
+      vi.resetModules();
+    }
+  });
   it('정상 사용자의 올바른 요청도 거절한다', async () => {
     const { POST } = await import('@/app/api/payment/portone/confirm/route');
     const res = await POST(

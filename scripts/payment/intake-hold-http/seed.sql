@@ -62,8 +62,8 @@ begin
   v_actor:=gen_random_uuid();
   insert into auth.users(id,email,created_at,updated_at)
    values(v_actor,format('h1-user-%s@example.invalid',v_index),now(),now());
-  insert into public.user_profiles(id,email,nickname)
-   values(v_actor,format('h1-user-%s@example.invalid',v_index),format('h1-http-user-%s',v_index));
+  insert into public.user_profiles(id,email,nickname,is_admin)
+   values(v_actor,format('h1-user-%s@example.invalid',v_index),format('h1-http-user-%s',v_index),true);
   insert into h1_cases values(v_label,v_actor,pg_temp.h1_order(v_label,v_actor));
  end loop;
 end $$;

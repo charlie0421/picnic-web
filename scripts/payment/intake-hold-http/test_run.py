@@ -586,6 +586,16 @@ class IntegratedBaselineTests(ManifestCase):
         pin_patch.start()
         self.addCleanup(pin_patch.stop)
 
+    def test_integrated_profile_installs_admin_gate_after_release(self):
+        name = MIGRATION_DIR + "20261125023007_web_payment_test_admin.sql"
+        data = b"test admin migration fixture"
+        self.put(self.db, name, data)
+        self.git.blobs[str(self.db)][name] = data
+        self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"] + [{"path": name, "sha256": sha(data)}]
+        self.seal()
+        with patch.object(subject, "TEST_ADMIN_SHA256", sha(data), create=True):
+            self.assertEqual(self.verify()["contractPrefix"][-1]["path"], name)
+
     def test_integrated_baseline_precedes_the_web_contract(self):
         self.manifest["contractPrefix"] = self.baseline + self.manifest["contractPrefix"]
         self.seal()

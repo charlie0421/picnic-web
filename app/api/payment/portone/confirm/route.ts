@@ -2,11 +2,10 @@ import { withSafeErrors } from '@/utils/with-safe-errors';
 import { NextRequest, NextResponse } from 'next/server';
 import { logSafeError } from '@/utils/log-safe-error';
 import { getServerUser, isWithdrawnUser } from '@/lib/supabase/server';
-import { PORTONE_WEB_PAYMENT_ENABLED } from '@/lib/payment/availability';
 
 // PortOne v2 브라우저 SDK confirmUrl 엔드포인트
 // 브라우저 SDK가 결제 직전 서버 컨펌을 위해 호출.
-export const POST = withSafeErrors('payment.portone.confirm.post.unhandled', async function POST(request: NextRequest) {
+export const POST = withSafeErrors('payment.portone.confirm.post.unhandled', async function POST(_request: NextRequest) {
   try {
     // Verify user is authenticated
     const user = await getServerUser();
@@ -22,50 +21,9 @@ export const POST = withSafeErrors('payment.portone.confirm.post.unhandled', asy
       return NextResponse.json({ error: 'A member who has unsubscribed.' }, { status: 403 });
     }
 
-    // 웹훅 서명 검증(#77)을 고치기 전까지 PortOne 결제를 승인하지 않는다.
-    // 배포 전에 열어 둔 탭의 옛 번들이 PortOne SDK 를 불러도 여기서 막힌다.
-    if (!PORTONE_WEB_PAYMENT_ENABLED) {
-      return NextResponse.json({ ok: false, reason: 'portone_disabled' }, { status: 403 });
-    }
-
-    const body = await request.json();
-    const { paymentId, orderName, totalAmount, customData } = body;
-
-    // Validate required fields
-    if (!paymentId || !totalAmount) {
-      return NextResponse.json(
-        { ok: false, reason: 'missing_required_fields' },
-        { status: 400 }
-      );
-    }
-
-    // Validate that totalAmount is a positive number
-    if (typeof totalAmount !== 'number' || totalAmount <= 0) {
-      return NextResponse.json(
-        { ok: false, reason: 'invalid_amount' },
-        { status: 400 }
-      );
-    }
-
-    // Validate customData contains userId matching the authenticated user
-    let parsedCustomData;
-    try {
-      parsedCustomData = typeof customData === 'string' ? JSON.parse(customData) : customData;
-    } catch {
-      return NextResponse.json(
-        { ok: false, reason: 'invalid_custom_data' },
-        { status: 400 }
-      );
-    }
-
-    if (parsedCustomData?.userId && parsedCustomData.userId !== user.id) {
-      return NextResponse.json(
-        { ok: false, reason: 'user_mismatch' },
-        { status: 403 }
-      );
-    }
-
-    return NextResponse.json({ ok: true });
+    // This legacy callback has no server-owned order or quote. Only an
+    // order-scoped manual confirmation can authorize a PortOne payment.
+    return NextResponse.json({ ok: false, reason: 'portone_disabled' }, { status: 403 });
   } catch (e) {
     logSafeError('payment.portone.confirm.failed', e);
     return NextResponse.json(
