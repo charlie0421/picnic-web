@@ -21,7 +21,7 @@ export default function ChartDashboard({ locale, copy: c, explorerLabel, synthet
   const [periods, setPeriods] = useState<(7 | 30 | 90)[]>([7, 30, 90]);
   const [clock, setClock] = useState<number | null>(null);
   const candidate = result.key === key && result.state === 'loaded' ? result.snapshot : undefined;
-  const expired = !!(candidate && clock !== null && chartFreshness(candidate, clock) === 'expired');
+  const expired = !!(!syntheticPreview && candidate && clock !== null && chartFreshness(candidate, clock) === 'expired');
   const state = expired ? 'error' : result.key === key ? result.state : 'loading';
   const snapshot = expired ? undefined : candidate;
   const titleId = useId();
@@ -36,7 +36,7 @@ export default function ChartDashboard({ locale, copy: c, explorerLabel, synthet
     const params = new URLSearchParams(Object.entries(filters).map(([name, value]) => [name, String(value)]));
     fetch(`/api/kpop-chart?${params}`, { signal: controller.signal, credentials: 'omit', cache: 'no-store' })
       .then(async response => {
-        if (!response.ok) throw new Error('Snapshot unavailable');
+        if (!response.ok || syntheticPreview !== (response.headers.get('X-Picnic-Data') === 'synthetic')) throw new Error('Snapshot unavailable');
         return parseChartSnapshot(await response.json(), filters);
       })
       .then(data => {
@@ -49,7 +49,7 @@ export default function ChartDashboard({ locale, copy: c, explorerLabel, synthet
       .catch(() => { if (active) setResult({ key, state: 'error' }); })
       .finally(() => clearTimeout(timeout));
     return () => { active = false; clearTimeout(timeout); controller.abort(); };
-  }, [key, retry]); // key contains every filter; old requests cannot replace the current result.
+  }, [key, retry, syntheticPreview]); // key contains every filter; old requests cannot replace the current result.
 
   useEffect(() => {
     setClock(Date.now());

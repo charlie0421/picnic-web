@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { chartFreshness, parseChartFilters, parseChartSnapshot } from '@/lib/charts/contract';
+import { isChartPreviewEnabled, sampleMarketChart } from '@/lib/charts/fandom-preview';
 
 export const dynamic = 'force-dynamic';
 const headers = { 'Cache-Control': 'no-store' };
@@ -7,6 +8,11 @@ const headers = { 'Cache-Control': 'no-store' };
 export async function GET(request: NextRequest) {
   const filters = parseChartFilters(request.nextUrl.searchParams);
   if (!filters) return NextResponse.json({ error: 'invalid_filters' }, { status: 400, headers });
+  if (isChartPreviewEnabled()) {
+    return NextResponse.json(parseChartSnapshot(sampleMarketChart(filters), filters), {
+      headers: { ...headers, 'X-Picnic-Data': 'synthetic' },
+    });
+  }
   const url = process.env.NEXT_PUBLIC_SUPABASE_URL;
   const key = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
   if (!url || !key) return NextResponse.json({ error: 'snapshot_unavailable' }, { status: 503, headers });

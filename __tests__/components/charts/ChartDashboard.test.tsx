@@ -69,10 +69,16 @@ describe('public chart experience', () => {
     expect(screen.queryByText(copy.countryNote)).toBeNull();
   });
   it('marks the dashboard itself when a deployment serves synthetic votes', async () => {
-    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture(), { headers: { 'X-Picnic-Data': 'synthetic' } })));
     render(<ChartDashboard locale="en" copy={copy} syntheticPreview />);
     await screen.findByText('Test Artist');
     expect(screen.getByRole('note', {name: copy.sampleBadge})).toHaveTextContent(copy.sampleBadge);
+  });
+  it('withholds a live response on a page labeled as a fictional preview', async () => {
+    vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));
+    render(<ChartDashboard locale="en" copy={copy} syntheticPreview />);
+    await screen.findByRole('button', { name: copy.retry });
+    expect(screen.queryByText('Test Artist')).toBeNull();
   });
   it('always offers a same-origin localized inquiry route', async () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(Response.json(fixture())));

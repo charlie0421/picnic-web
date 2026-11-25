@@ -1,7 +1,13 @@
 // First-party fictional catalog for explicitly marked investor previews.
 import { parseFandomReport, type FandomRequest, type Subject } from './fandom';
+import type { ChartCell, ChartFilters, ChartGender, ChartMetric, ChartSnapshot } from './contract';
 export function isChartPreviewEnabled() {
-    return process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic' && process.env.VERCEL_ENV !== 'production';
+    const stage = process.env.VERCEL_ENV;
+    return (
+        process.env.KPOP_CHART_PREVIEW_DATA === 'synthetic' &&
+        stage !== 'production' &&
+        (stage === 'preview' || process.env.NODE_ENV !== 'production')
+    );
 }
 const groups = [
     ['VELA NINE', '벨라 나인'],
@@ -27,8 +33,15 @@ const catalog: Subject[] = groups.flatMap(([en, ko], i) => [
 const day = 86400000;
 const end = Date.UTC(2026, 10, 23);
 const campaign = { id: '00000000-0000-4000-8000-000000000011', name: 'VELA NINE · Jakarta', shared: false };
-const n = (value: number) => ({ status: 'available', value });
+const n = (value: number) => ({ status: 'available' as const, value });
 const iso = (time: number) => new Date(time).toISOString().slice(0, 10);
+const markets = [
+    ['ID', 2800],
+    ['KR', 2140],
+    ['JP', 1260],
+    ['TH', 920],
+    ['US', 650],
+] as const;
 export function sampleFandom(req: FandomRequest) {
     if (req.type === 'search') {
         const q = req.query.toLocaleLowerCase();
@@ -53,13 +66,6 @@ export function sampleFandom(req: FandomRequest) {
         (((days / 30) * (f.entity === 'artist' ? 0.44 : f.mode === 'direct' ? 0.52 : 1)) /
             (1 + ((f.id % 10) - 1) * 0.16)) *
         (linked ? 0.38 : 1);
-    const markets = [
-        ['ID', 2800],
-        ['KR', 2140],
-        ['JP', 1260],
-        ['TH', 920],
-        ['US', 650],
-    ] as const;
     const rows = markets
         .filter(([country]) => f.country === 'ALL' || f.country === country)
         .map(([country, size]) => {
@@ -121,4 +127,96 @@ export function sampleFandom(req: FandomRequest) {
         },
         f.scope,
     );
+}
+
+/** The fictional subjects have disjoint audiences for this market comparison. */
+export function sampleMarketChart(filters: ChartFilters): ChartSnapshot {
+    const { days, ...selection } = filters;
+    const genders: Record<string, ChartGender> = {
+        '11': 'female',
+        '12': 'female',
+        '13': 'female',
+        '14': 'mixed',
+    };
+    const groupGrowth = [32, 18, 37, -6];
+    const records = catalog
+        .filter(
+            (s) =>
+                s.entity === filters.entity &&
+                (s.entity === 'artist' ||
+                    filters.group_gender === 'all' ||
+                    genders[s.id] === filters.group_gender),
+        )
+        .flatMap((subject) => {
+            const detail = sampleFandom({
+                type: 'report',
+                filters: {
+                    entity: subject.entity,
+                    id: Number(subject.id),
+                    country: filters.country,
+                    days,
+                    mode: filters.group_mode,
+                    scope: 'fandom',
+                    campaign: null,
+                },
+            });
+            if (Array.isArray(detail) || detail.status !== 'ready') return [];
+            return [{ subject, detail, growth: groupGrowth[(Number(subject.id) % 10) - 1] }];
+        });
+    const unavailable: ChartCell = { status: 'unavailable', value: null };
+    const total = (metric: ChartMetric) =>
+        records.reduce((sum, r) => sum + (r.detail.metrics[metric].value ?? 0), 0);
+    const prior = records.reduce(
+        (sum, r) => sum + (r.detail.metrics[filters.metric].value ?? 0) / (1 + r.growth / 100),
+        0,
+    );
+    const rankings = records
+        .map(({ subject, detail, growth }) => ({
+            id: subject.id,
+            name: subject.name,
+            entity: subject.entity,
+            gender: genders[subject.id] ?? null,
+            rank: 0,
+            value: detail.metrics[filters.metric],
+            growth_pct: n(growth),
+        }))
+        .sort((a, b) => (b.value.value ?? 0) - (a.value.value ?? 0));
+    rankings.forEach((r, i) => {
+        r.rank = i + 1;
+    });
+    const series = (records[0]?.detail.series ?? []).map((point, i) => ({
+        date: point.date,
+        // The detail fixture has no daily split for verified purchasers.
+        value:
+            filters.metric === 'purchaser_voters'
+                ? unavailable
+                : n(
+                      records.reduce(
+                          (sum, r) =>
+                              sum +
+                              (r.detail.series[i][filters.metric === 'votes' ? 'votes' : 'voters'].value ??
+                                  0),
+                          0,
+                      ),
+                  ),
+    }));
+    return {
+        schema_version: 1,
+        country_basis: 'profile_at_publication',
+        status: records.length ? 'ready' : 'empty',
+        period: { start: iso(end - days * day), end: iso(end), days },
+        filters: selection,
+        published_at: new Date(end).toISOString(),
+        refresh_due_at: null,
+        available_countries: ['ALL', ...markets.map(([code]) => code)],
+        available_days: [7, 30, 90],
+        summary: {
+            voters: n(total('voters')),
+            votes: n(total('votes')),
+            purchaser_voters: n(total('purchaser_voters')),
+            growth_pct: prior ? n(Math.round((total(filters.metric) / prior - 1) * 1000) / 10) : unavailable,
+        },
+        rankings,
+        series,
+    };
 }

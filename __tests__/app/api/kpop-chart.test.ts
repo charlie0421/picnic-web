@@ -20,6 +20,31 @@ describe('anonymous public chart endpoint', () => {
   });
   afterEach(() => { vi.unstubAllEnvs(); vi.unstubAllGlobals(); vi.useRealTimers(); });
 
+  it('serves the marked investor market and artist catalog from the same offline fixture', async () => {
+    vi.stubEnv('KPOP_CHART_PREVIEW_DATA', 'synthetic');
+    vi.stubEnv('VERCEL_ENV', 'preview');
+    vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', '');
+    const fetcher = vi.fn();
+    vi.stubGlobal('fetch', fetcher);
+    const query = 'country=ID&days=30&entity=group&group_mode=member_rollup&group_gender=female';
+    const response = await GET(new NextRequest('http://localhost/api/kpop-chart?' + query));
+    expect(response.status).toBe(200);
+    expect(response.headers.get('X-Picnic-Data')).toBe('synthetic');
+    const snapshot = await response.json();
+    expect(snapshot.rankings.map((r: { id: string }) => r.id)).toEqual(['11', '12', '13']);
+    expect(snapshot.rankings[0].value.value).toBe(2800);
+    expect(snapshot.series).toHaveLength(30);
+    expect(snapshot.rankings.every((r: { gender: string }) => r.gender === 'female')).toBe(true);
+    const empty = await GET(new NextRequest('http://localhost/api/kpop-chart?country=ZZ'));
+    expect((await empty.json()).status).toBe('empty');
+    expect(fetcher).not.toHaveBeenCalled();
+    vi.stubEnv('VERCEL_ENV', 'production');
+    expect((await GET(new NextRequest('http://localhost/api/kpop-chart?' + query))).status).toBe(503);
+    vi.stubEnv('VERCEL_ENV', '');
+    vi.stubEnv('NODE_ENV', 'production');
+    expect((await GET(new NextRequest('http://localhost/api/kpop-chart?' + query))).status).toBe(503);
+  });
+
   it('calls only the approved RPC anonymously and removes non-contract fields', async () => {
     const fetcher = vi.fn().mockResolvedValue(Response.json(fixture()));
     vi.stubGlobal('fetch', fetcher);

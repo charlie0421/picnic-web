@@ -43,7 +43,7 @@ const isoCountries =
     'AD AE AF AG AI AL AM AO AQ AR AS AT AU AW AX AZ BA BB BD BE BF BG BH BI BJ BL BM BN BO BQ BR BS BT BV BW BY BZ CA CC CD CF CG CH CI CK CL CM CN CO CR CU CV CW CX CY CZ DE DJ DK DM DO DZ EC EE EG EH ER ES ET FI FJ FK FM FO FR GA GB GD GE GF GG GH GI GL GM GN GP GQ GR GS GT GU GW GY HK HM HN HR HT HU ID IE IL IM IN IO IQ IR IS IT JE JM JO JP KE KG KH KI KM KN KP KR KW KY KZ LA LB LC LI LK LR LS LT LU LV LY MA MC MD ME MF MG MH MK ML MM MN MO MP MQ MR MS MT MU MV MW MX MY MZ NA NC NE NF NG NI NL NO NP NR NU NZ OM PA PE PF PG PH PK PL PM PN PR PS PT PW PY QA RE RO RS RU RW SA SB SC SD SE SG SH SI SJ SK SL SM SN SO SR SS ST SV SX SY SZ TC TD TF TG TH TJ TK TL TM TN TO TR TT TV TW TZ UA UG UM US UY UZ VA VC VE VG VI VN VU WF WS YE YT ZA ZM ZW'.split(
         ' ',
     );
-function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) {
+function useProjection<T>(query: string, parse: (raw: unknown) => T, preview: boolean, delay = 0) {
     const [state, setState] = useState<RequestState<T>>({ key: '' });
     const [revision, setRevision] = useState(0);
     useEffect(() => {
@@ -67,6 +67,8 @@ function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) 
                         setState({ key: query, error: r.status });
                     return;
                 }
+                if (preview !== (r.headers.get('X-Picnic-Data') === 'synthetic'))
+                    throw new Error('Data source mismatch');
                 const data = parse(await r.json());
                 if (active && document.visibilityState !== 'hidden') setState({ key: query, data });
             } catch {
@@ -79,7 +81,7 @@ function useProjection<T>(query: string, parse: (raw: unknown) => T, delay = 0) 
             controller.abort();
             document.removeEventListener('visibilitychange', refreshOnReturn);
         };
-    }, [query, revision, parse, delay]);
+    }, [query, revision, parse, preview, delay]);
     return {
         data: state.key === query ? state.data : undefined,
         error: state.key === query ? state.error : undefined,
@@ -108,6 +110,7 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
     const search = useProjection(
         input.trim() ? new URLSearchParams({ q: input.trim() }).toString() : '',
         parseSubjects,
+        preview,
         220,
     );
     const company = selected?.scope === 'campaign';
@@ -120,8 +123,13 @@ export default function FandomExplorer({ locale, chart: c, copy: f, preview }: P
               }).toString()
             : '',
         campaignsFrom,
+        preview,
     );
-    const report = useProjection(selected && (!company || selected.campaign) ? query : '', parseFandomReport);
+    const report = useProjection(
+        selected && (!company || selected.campaign) ? query : '',
+        parseFandomReport,
+        preview,
+    );
     const data = report.data;
     const number = new Intl.NumberFormat(locale, { maximumFractionDigits: 1 });
     const regions = new Intl.DisplayNames([locale], { type: 'region' });
