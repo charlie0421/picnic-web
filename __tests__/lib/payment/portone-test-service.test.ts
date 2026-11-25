@@ -193,6 +193,24 @@ describe('PortOne TEST armed settlement boundaries', () => {
     expect((await confirmPortOneTest(h.deps, approval)).state).toBe('PENDING');
     expect(h.transport.confirmPayment).toHaveBeenCalledTimes(1);
   });
+  // The documented ReadyPayment.method is optional, and the real INICIS_V2 TEST read omits it before confirmation.
+  function withoutMethod(status = 'READY') { const { method: _omitted, ...rest } = payment(status); return rest; }
+  it('confirms a documented READY that omits method, as the real INICIS_V2 TEST read does', async () => {
+    const h = armed(); h.transport.getPayment.mockResolvedValue(withoutMethod());
+    expect((await confirmPortOneTest(h.deps, approval)).state).toBe('PENDING');
+    expect(h.settlement.pinTransaction).toHaveBeenCalledExactlyOnceWith(ORDER, PAYMENT, 'tx-test');
+    expect(h.transport.confirmPayment).toHaveBeenCalledTimes(1);
+  });
+  it('still blocks a READY that names a non-card method before claim or confirmation', async () => {
+    const h = armed(); h.transport.getPayment.mockResolvedValue({ ...payment(), method: { type: 'PaymentMethodEasyPay' } });
+    expect((await confirmPortOneTest(h.deps, approval)).state).toBe('BLOCKED');
+    expect(h.repository.claimCharge).not.toHaveBeenCalled(); expect(h.transport.confirmPayment).not.toHaveBeenCalled();
+  });
+  it('never binds or publishes a PAID read that omits the card method', async () => {
+    const h = armed(); h.context.submissionIntentRecorded = true; h.transport.getPayment.mockResolvedValue(withoutMethod('PAID'));
+    expect(await reconcilePortOneTestPaid(h.deps, input, PAYMENT)).toBe(false);
+    expect(h.repository.bindPaidObservation).not.toHaveBeenCalled(); expect(h.settlement.publishPaid).not.toHaveBeenCalled();
+  });
   it('blocks scope or transaction persistence failure before claim and provider confirmation', async () => {
     for (const method of ['assertScope', 'pinTransaction'] as const) {
       const h = armed(); h.settlement[method].mockRejectedValue(new Error('PORTONE_TEST_UNAVAILABLE'));

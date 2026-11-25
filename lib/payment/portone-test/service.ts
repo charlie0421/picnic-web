@@ -113,6 +113,12 @@ function isScopedCard(value: unknown): boolean {
   const d = record(value);
   return record(d?.channel)?.pgProvider === 'INICIS_V2' && record(d?.method)?.type === 'PaymentMethodCard';
 }
+// ReadyPayment.method is optional and the real INICIS_V2 TEST read omits it before manual confirmation.
+// A present method must still be a card; PAID evidence keeps the strict isScopedCard requirement.
+function isScopedReady(value: unknown): boolean {
+  const d = record(value);
+  return record(d?.channel)?.pgProvider === 'INICIS_V2' && (d?.method === undefined || isScopedCard(value));
+}
 async function lookup(deps: PortOneTestDeps, input: PortOneTestInput, bound: Bound, txId?: string): Promise<boolean> {
   const value = await deps.transport.getPayment(bound.config, bound.context.paymentId!);
   return acceptPaid(deps, input, bound, value, txId);
@@ -141,7 +147,7 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     if (!bound) return response(input, 'BLOCKED');
     const value = await deps.transport.getPayment(bound.config, bound.context.paymentId!);
     const observed = assessPortOnePayment(value, bound.context, bound.config, input.txId);
-    if (!observed || (deps.settlement && !isScopedCard(value))) return response(input, 'BLOCKED');
+    if (!observed || (deps.settlement && !isScopedReady(value))) return response(input, 'BLOCKED');
     // An already-paid order with no native submission intent has no authorized manual confirmation to reconcile.
     if (observed.status === 'PAID') return response(input, 'BLOCKED');
     if (!live(bound.entryNotAfter, deps.nowMs()) || !live(bound.context.quoteExpiresAt, deps.nowMs())) return response(input, 'BLOCKED');
