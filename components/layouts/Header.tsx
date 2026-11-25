@@ -153,7 +153,8 @@ const Header: React.FC = () => {
             <span className='flex-shrink-0 inline-flex items-center rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white'>
               Beta
             </span>
-            <ChartMenuLink />
+            {/* 대시보드 진입 링크는 관리자 계정에만 보인다. 대시보드 주소 자체는 막지 않는다. */}
+            {isAdmin && <ChartMenuLink />}
             {portalMenuItems.length > 1 && (
             <div className='flex-1 relative'>
   <div ref={menuContainerRef} className='overflow-x-auto scrollbar-hide scroll-smooth'>
