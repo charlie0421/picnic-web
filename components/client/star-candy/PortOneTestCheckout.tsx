@@ -28,6 +28,12 @@ export function PortOneTestCheckout({ userId, productId, onClose }: {
   const [attempt, setAttempt] = useState<TestAttempt | null>(null);
   const [state, setState] = useState<TestState | null>(null);
   const [error, setError] = useState('');
+  const [cardBuyerNeeded, setCardBuyerNeeded] = useState(false);
+  const [fullName, setFullName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phoneNumber, setPhoneNumber] = useState('');
+  const validBuyer = fullName.trim().length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim()) &&
+    /^\+?[0-9][0-9 -]{6,22}[0-9]$/.test(phoneNumber.trim());
   useEffect(() => {
     active.current = true;
     try {
@@ -94,11 +100,16 @@ export function PortOneTestCheckout({ userId, productId, onClose }: {
       entry = await readTestEntry(quote, productId);
     }
     if (current(saved.input.requestId).submitted) throw new Error('SUBMITTED');
+    if (entry.method === 'CARD' && !validBuyer) {
+      setCardBuyerNeeded(true);
+      return;
+    }
     const response: unknown = await window.PortOne.requestPayment({
       paymentId:entry.paymentId, storeId:entry.storeId, channelKey:entry.channelKey, orderName:quote.name,
       totalAmount:quote.amount, currency:'KRW', payMethod:entry.method === 'CARD' ? 'CARD':'EASY_PAY',
       windowType:{pc:'IFRAME', mobile:'IFRAME'}, forceRedirect:false,
       customData:{version:'v2', order_id:quote.orderId},
+      ...(entry.method === 'CARD' && { customer:{fullName:fullName.trim(), email:email.trim(), phoneNumber:phoneNumber.trim()} }),
     });
     const confirmation = readTestToken(response, entry.paymentId);
     const latest = current(saved.input.requestId);
@@ -138,7 +149,16 @@ export function PortOneTestCheckout({ userId, productId, onClose }: {
         onClick={() => run(getQuote)}>{attempt ? '기존 견적 조회' : '견적 확인'}</button>}
       {q && <p>{q.name} · {q.amount.toLocaleString('ko-KR')}원</p>}
       {loaded && mobileBrowser() && <p>이 테스트 결제창은 PC에서 열 수 있습니다.</p>}
-      {canOpen && <button type="button" disabled={busy} onClick={() => run(showProvider)}>결제창 열기</button>}
+      {canOpen && cardBuyerNeeded && <fieldset className="space-y-2">
+        <legend>KG이니시스 PC 테스트용 구매자 정보</legend>
+        <label className="block">테스트 구매자 이름<input autoComplete="off" maxLength={80} value={fullName}
+          onChange={event => setFullName(event.target.value)} /></label>
+        <label className="block">테스트 이메일<input type="email" autoComplete="off" maxLength={254} value={email}
+          onChange={event => setEmail(event.target.value)} /></label>
+        <label className="block">테스트 전화번호<input type="tel" autoComplete="off" maxLength={24} value={phoneNumber}
+          onChange={event => setPhoneNumber(event.target.value)} /></label>
+      </fieldset>}
+      {canOpen && <button type="button" disabled={busy || (cardBuyerNeeded && !validBuyer)} onClick={() => run(showProvider)}>결제창 열기</button>}
       {q && <button type="button" disabled={busy} onClick={() => run(refresh)}>상태 조회</button>}
       {state && <p role="status">{messages[state]}</p>}
       {error && <p role="alert">{error}</p>}

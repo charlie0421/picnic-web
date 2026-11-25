@@ -26,7 +26,7 @@ beforeEach(() => {
   vi.stubEnv('NEXT_PUBLIC_SUPABASE_URL', 'http://127.0.0.1:54321');
   sessionStorage.clear();
   window.PortOne = {requestPayment: provider.mockReset().mockResolvedValue({paymentId, txId:'transaction-test', paymentToken:'private-fixture-token'})};
-  reply = ready;
+  reply = {...ready, method:'KAKAOPAY'};
   http.mockReset().mockImplementation(async (url: string, init: RequestInit) => {
     if (url === '/api/payment/orders') {
       const stored = JSON.parse(sessionStorage.getItem(key)!);
@@ -65,11 +65,21 @@ it.each(['CARD','KAKAOPAY'])('서버가 승인한 %s 채널로 열고 한 번 �
   show(); await getQuote();
   expect(provider).not.toHaveBeenCalled();
   click('결제창 열기');
+  if (method === 'CARD') {
+    fireEvent.change(await screen.findByLabelText('테스트 구매자 이름'), {target:{value:'테스트 구매자'}});
+    fireEvent.change(screen.getByLabelText('테스트 이메일'), {target:{value:'test@example.invalid'}});
+    fireEvent.change(screen.getByLabelText('테스트 전화번호'), {target:{value:'01000000000'}});
+    expect(provider).not.toHaveBeenCalled();
+    click('결제창 열기');
+  }
   await screen.findByText('결제 결과 확인 중');
   expect(provider).toHaveBeenCalledTimes(1);
   const args = provider.mock.calls[0][0];
   expect(args).toMatchObject({paymentId, storeId:ready.storeId, channelKey:ready.channelKey,
     payMethod:method === 'CARD' ? 'CARD':'EASY_PAY', totalAmount:1500, currency:'KRW', customData:{version:'v2',order_id:orderId}});
+  if (method === 'CARD') expect(args.customer).toEqual({fullName:'테스트 구매자', email:'test@example.invalid', phoneNumber:'01000000000'});
+  else expect(args.customer).toBeUndefined();
+  expect(sessionStorage.getItem(key)).not.toContain('test@example.invalid');
   expect(args.redirectUrl).toBeUndefined();
   expect(sessionStorage.getItem(key)).not.toContain('private-fixture-token');
   cleanup(); show();

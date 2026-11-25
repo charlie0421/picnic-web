@@ -158,6 +158,13 @@ describe('PortOne TEST server checkout', () => {
     h.context.settlementState = 'GRANTED';
     expect(await getPortOneTestStatus(h.deps, input)).toEqual({ state: 'GRANTED', orderId: ORDER });
   });
+  it('holds a payment already PAID at the first GET when this order has no recorded intent', async () => {
+    const h = harness(); h.transport.getPayment.mockResolvedValue(payment('PAID'));
+    expect((await confirmPortOneTest(h.deps, approval)).state).toBe('BLOCKED');
+    expect(h.repository.bindPaidObservation).not.toHaveBeenCalled();
+    expect(h.repository.receivePurchase).not.toHaveBeenCalled();
+    expect(h.transport.confirmPayment).not.toHaveBeenCalled();
+  });
   it('status is read-only owner recovery even after role loss and never invokes entry or provider', async () => {
     const h = harness(); h.context.submissionIntentRecorded = true; h.context.paymentState = 'SUBMISSION_UNKNOWN';
     expect(await getPortOneTestStatus(h.deps, input)).toEqual({ state: 'PENDING', orderId: ORDER });

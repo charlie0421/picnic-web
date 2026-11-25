@@ -31,6 +31,14 @@ function fixture() {
 }
 beforeEach(() => vi.clearAllMocks());
 describe('PortOne TEST signed-webhook reconciliation entry', () => {
+  it('holds a paid notification without a recorded native submission intent', async () => {
+    const h = fixture();
+    h.context.submissionIntentRecorded = false;
+    h.context.settlementState = 'NOT_INTAKE';
+    expect(await reconcilePortOneTestWebhook(PAYMENT)).toBe(false);
+    expect(h.repository.bindPaidObservation).not.toHaveBeenCalled();
+    expect(h.repository.receivePurchase).not.toHaveBeenCalled();
+  });
   it('resolves the actual owner and accepts repeatable native PAID intake without confirming', async () => {
     const h = fixture();
     expect(await reconcilePortOneTestWebhook(PAYMENT)).toBe(true);

@@ -116,6 +116,7 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     if (initial.settlementState === 'GRANTED' || initial.reviewRequired) return response(input, state(initial));
     if (!deps.config) return response(input, 'UNAVAILABLE');
     if (initial.submissionIntentRecorded || initial.paymentState === 'SUBMISSION_UNKNOWN' || initial.settlementState === 'INTAKE_PENDING') {
+      if (!initial.submissionIntentRecorded) return response(input, 'BLOCKED');
       const recovery = await loadBinding(deps, input, initial);
       if (!recovery) return response(input, 'BLOCKED');
       try { await lookup(deps, input, recovery, input.txId); } catch { /* An uncertain submission stays pending. */ }
@@ -126,10 +127,8 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
     const value = await deps.transport.getPayment(bound.config, bound.context.paymentId!);
     const observed = assessPortOnePayment(value, bound.context, bound.config, input.txId);
     if (!observed) return response(input, 'BLOCKED');
-    if (observed.status === 'PAID') {
-      await acceptPaid(deps, input, bound, value, input.txId);
-      return getPortOneTestStatus(deps, input);
-    }
+    // An already-paid order with no native submission intent has no authorized manual confirmation to reconcile.
+    if (observed.status === 'PAID') return response(input, 'BLOCKED');
     if (!live(bound.entryNotAfter, deps.nowMs()) || !live(bound.context.quoteExpiresAt, deps.nowMs())) return response(input, 'BLOCKED');
     const claimed = await deps.repository.claimCharge(input.actorUserId, input.orderId, bound.context.rowVersion);
     if (claimed.kind === 'LOOKUP_ONLY' || (claimed.kind === 'BLOCKED' && claimed.reason === 'LEASE_ACTIVE')) {
@@ -160,7 +159,7 @@ export async function confirmPortOneTest(deps: PortOneTestDeps, input: PortOneTe
 // Signed webhooks may only read and accept actual provider PAID facts. They never claim or confirm.
 export async function reconcilePortOneTestPaid(deps: PortOneTestDeps, input: PortOneTestInput, paymentId: string): Promise<boolean> {
   const context = await owned(deps, input);
-  if (!context || context.paymentId !== paymentId || context.reviewRequired) return false;
+  if (!context || context.paymentId !== paymentId || context.reviewRequired || !context.submissionIntentRecorded) return false;
   const bound = await loadBinding(deps, input, context);
   return bound ? lookup(deps, input, bound) : false;
 }
