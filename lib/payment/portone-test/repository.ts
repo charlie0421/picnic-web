@@ -2,15 +2,15 @@ import 'server-only';
 import { createHash } from 'node:crypto';
 import type { SupabaseClient } from '@supabase/supabase-js';
 import { callWebPaymentServiceRpc, ChargeRepositoryError, createWebPaymentChargeRepository, type ObservationResult } from '../paypal-charge/repository';
-import type { PortOneTestScope } from './config';
 import { parseBoundPaymentMethod, type ObservedPaymentMethod, type PortOneMethodEvidence } from './payment-method';
-import { boundedId, record, UUID, type PortOnePaidEvidence } from './protocol';
+import { boundedId, record, UUID, type PortOneEnvironment, type PortOnePaidEvidence, type PortOneScope } from './protocol';
 
 /** LEGACY keeps the v1 evidence contract. HOSTED orders record actual method facts and keep financial authority closed. */
 export type PortOneVerification = { contract: 'LEGACY' }
   | { contract: 'HOSTED'; checkoutFlow: 'PG_HOSTED_V1' | 'KAKAOPAY_DIRECT_V1'; paymentMethod: ObservedPaymentMethod | null };
+// Only a v2 binding can be LIVE. Its channel type always equals its environment.
 export type PortOneTestBinding = { orderId: string; contextId: string; quoteId: string; quoteHash: string;
-  provider: 'PORTONE'; environment: 'TEST'; billingCountry: 'KR'; scope: PortOneTestScope;
+  provider: 'PORTONE'; environment: PortOneEnvironment; billingCountry: 'KR'; scope: PortOneScope;
   bindingId: string; bindingVersion: string; bindingHash: string; credentialRef: string; verification: PortOneVerification };
 const HASH = /^[0-9a-f]{64}$/;
 const CLOSED = ['NOT_FOUND', 'CONTEXT_REQUIRED', 'VERIFICATION_BINDING_REQUIRED'];
@@ -55,16 +55,18 @@ function parseBinding(value: unknown, orderId: string, version: 'v1' | 'v2'): Po
   }
   const keys = version === 'v1' ? V1_KEYS : V2_KEYS;
   const scope = record(d.scope);
+  const environment: PortOneEnvironment | null = d.environment === 'TEST' ? 'TEST'
+    : version === 'v2' && d.environment === 'LIVE' ? 'LIVE' : null;
   requireValue(Object.keys(d).length === keys.length && keys.every(key => Object.hasOwn(d, key))
     && d.outcome === 'FOUND' && d.order_id === orderId && typeof d.context_id === 'string' && UUID.test(d.context_id)
     && typeof d.quote_id === 'string' && UUID.test(d.quote_id) && typeof d.quote_hash === 'string' && HASH.test(d.quote_hash)
-    && d.provider === 'PORTONE' && d.environment === 'TEST' && d.billing_country === 'KR'
+    && d.provider === 'PORTONE' && environment !== null && d.billing_country === 'KR'
     && typeof d.binding_id === 'string' && UUID.test(d.binding_id)
     && typeof d.binding_version === 'string' && /^[1-9][0-9]{0,18}$/.test(d.binding_version)
     && BigInt(d.binding_version) <= BigInt('9223372036854775807') && typeof d.binding_hash === 'string' && HASH.test(d.binding_hash)
     && typeof d.credential_ref === 'string' && /^[A-Za-z][A-Za-z0-9._-]{0,127}$/.test(d.credential_ref)
     && d.expected_application === null && scope && Object.keys(scope).length === 4
-    && boundedId(scope.merchant_id) && boundedId(scope.store_id) && boundedId(scope.channel_id) && scope.channel_type === 'TEST');
+    && boundedId(scope.merchant_id) && boundedId(scope.store_id) && boundedId(scope.channel_id) && scope.channel_type === environment);
   let verification: PortOneVerification = { contract: 'LEGACY' };
   if (version === 'v2') {
     if (d.binding_contract_version === 'web-payment-verification-binding.v1') {
@@ -78,9 +80,11 @@ function parseBinding(value: unknown, orderId: string, version: 'v1' | 'v2'): Po
       verification = { contract: 'HOSTED', checkoutFlow: d.checkout_flow, paymentMethod };
     }
   }
+  // LIVE exists only for hosted orders. The legacy contract stays a TEST drill.
+  requireValue(environment === 'TEST' || verification.contract === 'HOSTED');
   return { orderId, contextId: d.context_id, quoteId: d.quote_id, quoteHash: d.quote_hash,
-    provider: 'PORTONE', environment: 'TEST', billingCountry: 'KR', scope: { merchant_id: scope.merchant_id as string,
-      store_id: scope.store_id as string, channel_id: scope.channel_id as string, channel_type: 'TEST' },
+    provider: 'PORTONE', environment, billingCountry: 'KR', scope: { merchant_id: scope.merchant_id as string,
+      store_id: scope.store_id as string, channel_id: scope.channel_id as string, channel_type: environment },
     bindingId: d.binding_id, bindingVersion: d.binding_version, bindingHash: d.binding_hash, credentialRef: d.credential_ref, verification };
 }
 

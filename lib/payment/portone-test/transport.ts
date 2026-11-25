@@ -1,10 +1,12 @@
 import 'server-only';
-import type { PortOneTestConfig } from './config';
 
-export type ConfirmBody = { storeId: string; txId: string; paymentToken: string; totalAmount: number; currency: 'KRW'; isTest: true };
+// `isTest` is sent only for a TEST channel. The legacy drill always sends it; a LIVE confirmation never does.
+export type ConfirmBody = { storeId: string; txId: string; paymentToken: string; totalAmount: number; currency: 'KRW'; isTest?: true };
+/** Server-only credentials resolved from the order's frozen channel. */
+export type PortOneCredentials = { readonly store_id: string; readonly apiSecret: string };
 export interface PortOneTestTransport {
-  getPayment(config: PortOneTestConfig, paymentId: string): Promise<unknown>;
-  confirmPayment(config: PortOneTestConfig, paymentId: string, body: ConfirmBody): Promise<void>;
+  getPayment(config: PortOneCredentials, paymentId: string): Promise<unknown>;
+  confirmPayment(config: PortOneCredentials, paymentId: string, body: ConfirmBody): Promise<void>;
 }
 export class PortOneTestTransportError extends Error {
   constructor() { super('PORTONE_TEST_UNAVAILABLE'); }
@@ -28,7 +30,7 @@ async function boundedJson(response: Response): Promise<unknown> {
   finally { reader.releaseLock(); }
 }
 export function createPortOneTestTransport(fetcher: typeof fetch = fetch): PortOneTestTransport {
-  async function request(config: PortOneTestConfig, paymentId: string, body?: ConfirmBody): Promise<unknown> {
+  async function request(config: PortOneCredentials, paymentId: string, body?: ConfirmBody): Promise<unknown> {
     try {
       if (!/^web_[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/.test(paymentId)) throw new PortOneTestTransportError();
       const url = `https://api.portone.io/payments/${encodeURIComponent(paymentId)}${body ? '/confirm' : `?storeId=${encodeURIComponent(config.store_id)}`}`;

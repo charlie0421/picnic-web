@@ -123,7 +123,7 @@ export const AUTH_CALLBACK_PATH = /^\/auth\/callback(?:\/[^/]+)?\/?$/;
 // middleware 의 config.matcher 제외 목록과 같은 기준이다(matcher 는 정적 분석 대상이라 이 상수를 못 쓴다 —
 // 동기화는 __tests__/middleware/pass-through-sync.test.ts 가 확인한다). 확장자로 판정하지 않는다.
 export const STATIC_ASSET_PATH =
-  /^\/(?:_next\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|apple-touch-icon(?:-precomposed)?\.png|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-(?:0|[1-9]\d?))?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js)$)/;
+  /^\/(?:_next\/|images\/|locales\/|favicon\/|concert2025\/(?:image|video)\/|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)\/sitemap\.xml$|(?:favicon\.ico|apple-touch-icon(?:-precomposed)?\.png|robots\.txt|ads\.txt|app-ads\.txt|sitemap(?:-(?:0|[1-9]\d?))?\.xml|manifest\.json|site\.webmanifest|apple-developer-domain-association\.txt|firebase-messaging-sw\.js|emergency-auth-fix\.js|portone-return\.html|portone-return\.js)$)/;
 
 // 언어 세그먼트 밖의 실제 라우트. (bare) 페이지는 첫 세그먼트가 아니라 라우트 단위로 적는다 —
 // auth 를 통째로 통과시키면 /auth/rewards 가 [lang]=auth 로 샌다.

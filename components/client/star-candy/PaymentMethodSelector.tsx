@@ -4,7 +4,7 @@ import React, { useEffect, useState } from 'react';
 import { useLanguageStore } from '@/stores/languageStore';
 import { detectUserLocation, getPaymentMethodByLocation, clearLocationCache } from '@/utils/ip-detection';
 import { motion } from 'framer-motion';
-import { PORTONE_WEB_PAYMENT_ENABLED } from '@/lib/payment/availability';
+import { PORTONE_SELECTABLE } from '@/lib/payment/availability';
 
 export type PaymentMethod = 'portone' | 'paypal';
 
@@ -66,11 +66,11 @@ export function PaymentMethodSelector({ onMethodChange, className = '' }: Paymen
       name: 'PayPal',
       description: t('payment_method_paypal_desc'),
       icon: '🌍',
-      recommended: !PORTONE_WEB_PAYMENT_ENABLED || detectedCountry !== 'South Korea',
+      recommended: !PORTONE_SELECTABLE || detectedCountry !== 'South Korea',
     },
   ];
   const paymentMethods = allPaymentMethods.filter(
-    (method) => PORTONE_WEB_PAYMENT_ENABLED || method.id !== 'portone',
+    (method) => PORTONE_SELECTABLE || method.id !== 'portone',
   );
 
   if (isLoading) {

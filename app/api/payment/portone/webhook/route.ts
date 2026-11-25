@@ -1,6 +1,7 @@
 import { withSafeErrors } from '@/utils/with-safe-errors';
 import { isServerOrderUuid } from '@/lib/payment/server-order';
 import { reconcilePortOneTestWebhook, reconcilePortOneTestCancellation } from '@/lib/payment/portone-test/webhook';
+import { handlePortOneHostedWebhook } from '@/lib/payment/portone-hosted/webhook';
 import { boundedId, record, UUID } from '@/lib/payment/portone-test/protocol';
 import { createHash } from 'node:crypto';
 import { NextRequest, NextResponse } from 'next/server';
@@ -70,6 +71,10 @@ export const POST = withSafeErrors('payment.portone.webhook.post.unhandled', asy
   try {
     // 서명은 받은 원문 그대로 검증한다. 파싱 후 다시 직렬화하면 서명이 맞지 않는다(#77).
     const rawBody = await request.text();
+    // Hosted web_ orders: refuse authorization requests and hand verified notifications to the durable hint RPC.
+    // Anything that is not a hosted order returns null and keeps the existing routing below.
+    const hosted = await handlePortOneHostedWebhook(rawBody, request.headers);
+    if (hosted) return hosted;
     const verification = await verifyPortOneWebhook(rawBody, request.headers);
     if (!verification.ok) {
       if (verification.reason === 'secret_missing') {

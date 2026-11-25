@@ -186,6 +186,6 @@ export const config = {
   // - matcher 는 정적 분석 대상이라 상수를 참조할 수 없다. lib/i18n/locale-routing.ts 의 STATIC_ASSET_PATH 와
   //   같은 기준을 유지한다(동기화는 __tests__/middleware/pass-through-sync.test.ts).
   matcher: [
-    "/((?!api/|_next/static|_next/image|favicon\\.ico$|apple-touch-icon(?:-precomposed)?\\.png$|robots\\.txt$|app-ads\\.txt$|ads\\.txt$|sitemap\\.xml$|sitemap-(?:0|[1-9]\\d?)\\.xml$|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\\.xml$|manifest\\.json$|site\\.webmanifest$|apple-developer-domain-association\\.txt$|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$).*)",
+    "/((?!api/|_next/static|_next/image|favicon\\.ico$|apple-touch-icon(?:-precomposed)?\\.png$|robots\\.txt$|app-ads\\.txt$|ads\\.txt$|sitemap\\.xml$|sitemap-(?:0|[1-9]\\d?)\\.xml$|(?:en|ko|zh-cn|zh-tw|ja|id|es|bn|tl|th|vi|my)/sitemap\\.xml$|manifest\\.json$|site\\.webmanifest$|apple-developer-domain-association\\.txt$|images/|locales/|favicon/|concert2025/(?:image|video)/|firebase-messaging-sw\\.js$|emergency-auth-fix\\.js$|portone-return\\.html$|portone-return\\.js$).*)",
   ],
 };
