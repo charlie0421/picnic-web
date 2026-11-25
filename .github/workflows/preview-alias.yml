@@ -8,6 +8,8 @@
 # - secrets.VERCEL_TOKEN: 팀 범위의 Vercel 토큰. 이 워크플로만 쓴다.
 # - vars.VERCEL_TEAM_ID, vars.VERCEL_PROJECT_ID: .vercel/project.json 의 orgId 와 projectId.
 # - DNS: preview.picnic.fan 의 CNAME 은 cname.vercel-dns.com 이다.
+# - 인증서: DNS 를 추가한 뒤 한 번 `vercel certs issue preview.picnic.fan` 을 실행한다. 인증서가 없으면
+#   Vercel 이 주소 연결을 HTTP 400 으로 거절한다.
 #
 # 안전 규칙:
 # - deployment_status 이벤트의 워크플로는 기본 브랜치의 이 파일로 실행된다. 스크립트를 이 파일 안에 두고
