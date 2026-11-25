@@ -85,18 +85,30 @@ jobs:
           }
 
           # 1. 이 프로젝트에서 이 저장소의 커밋으로 만든 준비된 Preview 배포 중 가장 최근 것을 찾는다.
-          code=$(call GET "/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&target=preview&state=READY&limit=20") \
-            || fail 'Vercel API 에 연결하지 못했습니다.'
-          [ "$code" = 200 ] || fail "Preview 배포 목록을 조회하지 못했습니다 (HTTP ${code})."
-          candidate=$(jq -c --arg repo "$(lower "$REPOSITORY")" '
-            [ (.deployments // [])[]
-              | select((.target // "preview") != "production")
-              | select((.state // .readyState // "") == "READY")
-              | select((((.meta.githubCommitOrg // "") + "/" + (.meta.githubCommitRepo // "")) | ascii_downcase) == $repo)
-            ]
-            | sort_by(.created // .createdAt // 0)
-            | last // empty' "$work/body.json") || fail 'Preview 배포 목록을 읽지 못했습니다.'
-          [ -n "$candidate" ] || skip '이 저장소의 준비된 Preview 배포가 없습니다. 주소를 그대로 둡니다.'
+          #    목록은 최근 것부터 온다. 한 페이지에 맞는 배포가 없으면 pagination.next 로 다음(더 옛) 페이지를 본다.
+          #    맞는 배포가 있는 첫 페이지에서 멈춘다. 그 뒤 페이지는 더 옛 배포뿐이다.
+          repo_lc="$(lower "$REPOSITORY")"
+          until_param=''
+          candidate=''
+          for page in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(call GET "/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&target=preview&state=READY&limit=20${until_param}") \
+              || fail 'Vercel API 에 연결하지 못했습니다.'
+            [ "$code" = 200 ] || fail "Preview 배포 목록을 조회하지 못했습니다 (HTTP ${code}, ${page}쪽)."
+            candidate=$(jq -c --arg repo "$repo_lc" '
+              [ (.deployments // [])[]
+                | select((.target // "preview") != "production")
+                | select((.state // .readyState // "") == "READY")
+                | select((((.meta.githubCommitOrg // "") + "/" + (.meta.githubCommitRepo // "")) | ascii_downcase) == $repo)
+              ]
+              | sort_by(.created // .createdAt // 0)
+              | last // empty' "$work/body.json") || fail 'Preview 배포 목록을 읽지 못했습니다.'
+            [ -z "$candidate" ] || break
+            next=$(jq -r '.pagination.next // empty' "$work/body.json") || fail 'Preview 배포 목록을 읽지 못했습니다.'
+            [ -n "$next" ] || skip '이 저장소의 준비된 Preview 배포가 없습니다. 주소를 그대로 둡니다.'
+            [[ "$next" =~ ^[0-9]+$ ]] || fail '다음 페이지 표시의 형식이 다릅니다.'
+            until_param="&until=${next}"
+          done
+          [ -n "$candidate" ] || fail '최근 Preview 배포 10쪽 안에 이 저장소의 배포가 없습니다. 주소를 그대로 둡니다.'
           id=$(printf '%s' "$candidate" | jq -r '.uid // .id // empty')
           host=$(printf '%s' "$candidate" | jq -r '.url // empty')
           [[ "$id" =~ ^dpl_[A-Za-z0-9]+$ ]] || fail '배포 ID 의 형식이 다릅니다.'

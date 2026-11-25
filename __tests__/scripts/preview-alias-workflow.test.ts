@@ -49,6 +49,8 @@ function preview(uid: string, created: number, overrides: Deployment = {}): Depl
 }
 
 let listReply: Reply;
+// until 값별 다음 페이지. 첫 페이지는 listReply 다.
+let laterPages: Record<string, Reply>;
 let aliasReply: Reply;
 let postReply: Reply;
 let seen: Seen[];
@@ -67,7 +69,10 @@ const server = http.createServer((req, res) => {
     seen.push({ method: req.method ?? '', url: req.url ?? '', auth: req.headers.authorization, body });
     const url = new URL(req.url ?? '/', 'http://localhost');
     let reply: Reply = { status: 500, body: { error: { code: 'unexpected_route' } } };
-    if (req.method === 'GET' && url.pathname === '/v6/deployments') reply = listReply;
+    if (req.method === 'GET' && url.pathname === '/v6/deployments') {
+      const until = url.searchParams.get('until');
+      reply = until === null ? listReply : laterPages[until] ?? NOT_FOUND;
+    }
     else if (req.method === 'GET' && url.pathname === `/v4/aliases/${ALIAS}`) reply = aliasReply;
     else if (req.method === 'POST' && /^\/v2\/deployments\/[^/]+\/aliases$/.test(url.pathname)) reply = postReply;
     res.writeHead(reply.status, { 'content-type': 'application/json' });
@@ -117,6 +122,7 @@ afterAll(async () => {
 
 beforeEach(() => {
   listReply = listOf(preview('dpl_C', 3000), preview('dpl_B', 2000), preview('dpl_A', 1000));
+  laterPages = {};
   aliasReply = aliasAt('dpl_A');
   postReply = { status: 200, body: { alias: ALIAS, uid: 'alias_1' } };
   seen = [];
@@ -225,6 +231,74 @@ describe('preview-alias script', () => {
     listReply = listOf(preview('dpl_X', 9000, overrides), preview('dpl_C', 3000));
     await run();
     expect(postedTo()).toEqual(['/v2/deployments/dpl_C/aliases']);
+  });
+
+  describe('pagination', () => {
+    const foreignPage = (start: number, next: number | null): Reply => ({
+      status: 200,
+      body: {
+        deployments: Array.from({ length: 20 }, (_, i) =>
+          preview(`dpl_F${start + i}`, 10000 - start - i, { meta: { githubCommitOrg: 'someone', githubCommitRepo: 'other' } })),
+        pagination: { count: 20, next, prev: null },
+      },
+    });
+    const listUrls = () => seen.filter((r) => r.method === 'GET' && r.url.startsWith('/v6/deployments'));
+
+    it('follows the next page when the first page has no deployment of this repository', async () => {
+      listReply = foreignPage(0, 1500);
+      laterPages['1500'] = listOf(preview('dpl_B', 1400), preview('dpl_A', 1000));
+      const result = await run();
+      expect(result.code).toBe(0);
+      expect(listUrls()).toHaveLength(2);
+      expect(new URL(listUrls()[1].url, 'http://localhost').searchParams.get('until')).toBe('1500');
+      expect(postedTo()).toEqual(['/v2/deployments/dpl_B/aliases']);
+    });
+
+    it('stops at the first page that has a deployment of this repository', async () => {
+      listReply = { status: 200, body: { deployments: [preview('dpl_C', 3000)], pagination: { next: 2900 } } };
+      laterPages['2900'] = listOf(preview('dpl_Z', 9999));
+      await run();
+      expect(listUrls()).toHaveLength(1);
+      expect(postedTo()).toEqual(['/v2/deployments/dpl_C/aliases']);
+    });
+
+    it('leaves the address alone when the last page has no deployment of this repository', async () => {
+      listReply = foreignPage(0, 1500);
+      laterPages['1500'] = foreignPage(20, null);
+      const result = await run();
+      expect(result.code).toBe(0);
+      expect(listUrls()).toHaveLength(2);
+      expect(posts()).toHaveLength(0);
+      expect(result.output).toContain('::notice::');
+    });
+
+    it('fails instead of reporting success when ten pages hold no deployment of this repository', async () => {
+      listReply = foreignPage(0, 1);
+      for (let i = 1; i <= 10; i += 1) laterPages[String(i)] = foreignPage(i * 20, i + 1);
+      const result = await run();
+      expect(result.code).toBe(1);
+      expect(listUrls()).toHaveLength(10);
+      expect(posts()).toHaveLength(0);
+      expect(result.output).toContain('::error::');
+    });
+
+    it('fails when the next-page marker is not a number', async () => {
+      listReply = foreignPage(0, null);
+      (listReply.body as { pagination: { next: unknown } }).pagination.next = '1&x=1';
+      const result = await run();
+      expect(result.code).toBe(1);
+      expect(listUrls()).toHaveLength(1);
+      expect(posts()).toHaveLength(0);
+    });
+
+    it('fails when a later page cannot be read', async () => {
+      listReply = foreignPage(0, 1500);
+      laterPages['1500'] = { status: 502, body: { error: { code: 'bad_gateway' } } };
+      const result = await run();
+      expect(result.code).toBe(1);
+      expect(posts()).toHaveLength(0);
+      expect(result.output).toContain('HTTP 502');
+    });
   });
 
   it('compares the repository name without regard to case', async () => {
