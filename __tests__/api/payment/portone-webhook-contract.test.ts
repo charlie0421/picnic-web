@@ -19,6 +19,8 @@ const mocks = vi.hoisted(() => ({
   productQueries: [] as Array<{ column: string; value: unknown }>,
   rpcResult: { receipt_id: 101 } as unknown,
   rpcError: null as { message: string; code?: string } | null,
+  reconcileTest: vi.fn(),
+  cancellationTest: vi.fn(),
   verifyPortOnePayment: vi.fn(),
   rpc: vi.fn(),
 }));
@@ -49,6 +51,8 @@ vi.mock('@/app/api/payment/portone/webhook/webhook-helpers', async (importOrigin
   };
 });
 
+vi.mock('@/lib/payment/portone-test/webhook', () => ({ reconcilePortOneTestWebhook: mocks.reconcileTest,
+  reconcilePortOneTestCancellation: mocks.cancellationTest }));
 import { POST } from '@/app/api/payment/portone/webhook/route';
 
 const USER = '00000000-0000-0000-0000-000000000001';
@@ -102,6 +106,8 @@ function webhook(body: unknown, options: SendOptions = {}) {
 
 beforeEach(() => {
   vi.stubEnv('PORTONE_WEBHOOK_SECRET', SECRET);
+  mocks.reconcileTest.mockReset();
+  mocks.cancellationTest.mockReset().mockResolvedValue('ACCEPTED');
   mocks.payment = paidPayment();
   mocks.verifyError = null;
   mocks.profile = { deleted_at: null };
@@ -120,6 +126,56 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.unstubAllEnvs();
+});
+
+describe('주문 기반 포트원 웹훅', () => {
+  const id = 'web_00000000-0000-4000-8000-000000000001';
+  const cancelled = (paymentId = id) => ({ type: 'Transaction.Cancelled', timestamp: '2026-11-25T00:00:00Z',
+    data: { paymentId, storeId: 'store-test', transactionId: 'tx-original', cancellationId: 'cancel-1' } });
+  it('dispatches signed web cancellation before the legacy paid selector with a raw-body hash', async () => {
+    const raw = JSON.stringify(cancelled());
+    expect((await POST(webhook(raw))).status).toBe(200);
+    expect(mocks.cancellationTest).toHaveBeenCalledExactlyOnceWith(cancelled(), expect.objectContaining({
+      deliveryId: 'msg_1', bodySha256: expect.stringMatching(/^[0-9a-f]{64}$/),
+    }));
+    expect(mocks.reconcileTest).not.toHaveBeenCalled(); expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it('does not dispatch invalid signatures or expired cancellation deliveries', async () => {
+    expect((await POST(webhook(cancelled(), { secret: OTHER_SECRET }))).status).toBe(401);
+    expect((await POST(webhook(cancelled(), { timestamp: Math.floor(Date.now() / 1000) - 3600 }))).status).toBe(401);
+    expect(mocks.cancellationTest).not.toHaveBeenCalled();
+  });
+  it('retains legacy cancellation 200 without the new intake or financial path', async () => {
+    expect((await POST(webhook(cancelled('pay_1')))).status).toBe(200);
+    expect(mocks.cancellationTest).not.toHaveBeenCalled(); expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it.each(['transactionId', 'cancellationId', 'storeId'])('rejects signed incomplete web cancellation: %s', async field => {
+    const event = cancelled(); delete (event.data as any)[field];
+    expect((await POST(webhook(event))).status).toBe(400);
+    expect(mocks.cancellationTest).not.toHaveBeenCalled();
+  });
+  it('retries cancellation spool failure and safely ignores foreign traffic', async () => {
+    mocks.cancellationTest.mockResolvedValueOnce('UNAVAILABLE').mockResolvedValueOnce('IGNORED');
+    expect((await POST(webhook(cancelled()))).status).toBe(503);
+    expect((await POST(webhook(cancelled()))).status).toBe(200);
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it.each([[true, 200], [false, 503]] as const)('접수 결과 %s를 반환하고 기존 지급 경로를 건너뛴다', async (accepted, status) => {
+    mocks.reconcileTest.mockResolvedValue(accepted);
+    expect((await POST(webhook(paidEvent(id)))).status).toBe(status);
+    expect(mocks.reconcileTest).toHaveBeenCalledExactlyOnceWith(id);
+    expect(mocks.verifyPortOnePayment).not.toHaveBeenCalled();
+    expect(mocks.rpc).not.toHaveBeenCalled();
+  });
+  it('서명 오류는 주문 조회 전에 거부한다', async () => {
+    expect((await POST(webhook(paidEvent(id), { secret: OTHER_SECRET }))).status).toBe(401);
+    expect(mocks.reconcileTest).not.toHaveBeenCalled();
+  });
+  it('잘못된 예약 결제 ID가 기존 지급 경로에 도달하지 않는다', async () => {
+    expect((await POST(webhook(paidEvent('web_invalid')))).status).toBe(400);
+    expect(mocks.reconcileTest).not.toHaveBeenCalled();
+    expect(mocks.verifyPortOnePayment).not.toHaveBeenCalled();
+  });
 });
 
 describe('PortOne webhook — 서명 검증 (Standard Webhooks, #77)', () => {

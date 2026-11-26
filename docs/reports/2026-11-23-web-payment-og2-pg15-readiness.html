@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>웹 결제 운영 전환 준비 · PostgreSQL 15.8</title>
+<style>
+body{font:16px/1.6 system-ui,sans-serif;max-width:1050px;margin:3rem auto;padding:0 1.2rem;color:#13273a}
+h1,h2{line-height:1.25} h2{margin-top:2rem} table{border-collapse:collapse;width:100%}
+td,th{padding:.5rem .7rem;border:1px solid #bac9d6;text-align:left;vertical-align:top}
+th{background:#eef3f7} code{overflow-wrap:anywhere} .scroll{overflow-x:auto}
+a{color:#155a91} li{margin:.35rem 0}
+</style></head><body><main>
+<h1>웹 결제 운영 전환 준비</h1>
+<p><strong>상태 · 운영 DB 마이그레이션 15개 적용 완료.</strong> 2026-11-24에 <code>PICNIC-PROD</code>의 PostgreSQL 15.8에서 적용과 사후 검사를 마쳤다. 고객용 웹 등록·청구는 닫혀 있다. 앱·작업자 배포와 웹 재조정 cron은 별도 승인 대상이다.</p>
+<h2>운영 적용 결과</h2>
+<p>2026-11-24 14:42:04부터 14:42:51까지 KST 기준으로 D <code>416daf83</code>의 고정 키트를 적용했다. <code>00-preflight.sql</code>은 <code>OG2_READY</code>를 반환했다. 04번과 07번 직전의 충돌 잠금과 대기는 모두 0건이었다. 07번 테이블 크기는 리허설 규모 이내였다. 각 파일의 커밋 뒤 원장 이름, SQL 텍스트 개수와 SHA256을 확인했다. 16번은 <code>OG2_LEDGER_AND_MANIFEST_VERIFIED</code>를 반환했다. 운영 적용 기록의 SHA256은 <code>b3b7808f60d61977c02e7165a4964213cd4d6fad61f119003df01dbde21f0f57</code>이다.</p>
+<p>운영 읽기 전용 사후 조회에서 검증 대상 RPC 7개에 <code>service_role</code> 실행 권한이 있고 브라우저 역할에는 0개임을 확인했다. 원장 테이블 12개는 모두 RLS를 사용하고 런타임 역할의 직접 테이블 권한은 0건이었다. 증거 보호 트리거 22개가 활성 상태였다. 미제출 보류 해제 RPC의 런타임 실행 권한은 0건이었다. 운영 heartbeat 정의 지문은 <code>02ee46003c64d73f6f9dcd9c64794757</code>이고 기존 소유자와 ACL이 유지됐다. 운영 관측을 사용한 <code>--web-payment-post-cutover</code> 검사에서 불일치가 0건이었다.</p>
+<p>14:45 KST에 적용 뒤 처음 예정된 heartbeat 실행과 같은 시각의 공용 지갑 작업자 실행이 성공했다. 읽기 전용 조회에서 HEALTH 작업이 아직 등록되지 않았을 때 발생하는 <code>web-payment:job:stale:HEALTH</code>의 <code>WARNING</code> 경보 1건을 확인했다. 웹 결제 cron은 0개이며 공급자 설정의 열린 등록·청구 플래그도 0개다.</p>
+<h2>검증한 후보</h2>
+<ul>
+<li>DB 통합 커밋 <code>ceeeaabb32e605597166336e89a6279cdfd2717b</code>. 웹 검증기 커밋 <code>4bb0c2933d1148cc57306a2b7a85d62f8773e772</code>.</li>
+<li>H1 매니페스트 SHA256 <code>5b00c2f3bc02aa324274d2cf53862c5e14f10d7bac87641dd1ff1bed2e347a8c</code>.</li>
+<li>Supabase 공개 이미지 <code>15.8.1.038</code>에서 운영 기준 순서와 파일명 순서로 각각 278개 파일을 적용했다. 지급 전 환불 차단과 같은 트리거가 활성화된 PORTONE 웹 지급을 확인했다. DB 리플레이에서는 기준선 덤프의 <code>SET transaction_timeout = 0;</code> 한 줄만 제외했다. 이 세 결과는 SQL 실행 증거다.</li>
+<li>별도 H1의 <code>postgres:15.8</code>에서는 main 5개, <code>current10</code>, M1–M5를 순서대로 설치했다. 정상 및 장애 단계가 통과했다. 장애 단계에는 같은 주문의 재시작 증명 4건이 있다. M1–M5를 DB에 설치하지 않은 스모크 실행은 PostgreSQL 카탈로그에서 보호 계약 17개가 없음을 확인하고 PostgREST 시작 전에 종료했다.</li>
+<li>H1은 고정한 소스에서 결제 정의와 기존 투표 함수·타입을 가져왔다. 빈 migration 원장과 투표 RPC의 원래 owner·ACL 및 <code>PROVIDER_WORKER</code> 분류를 fixture에 재현했다. 투표 실행과 운영 원장에 이미 기록된 분기는 검증 범위에 포함되지 않았다.</li>
+<li>전체 DB 리플레이는 파일별 트랜잭션을 사용했다. H1은 선행 main 5개만 파일별 트랜잭션으로 감싸고, 기존 15개는 psql 기본 동작으로 실행했다. H1은 합성 PayPal과 로컬 PostgREST 검증이다. 실제 provider, 운영 gateway, 운영 DB 쓰기는 검증하지 않았다.</li>
+</ul>
+<h2>승인 전 사전 점검</h2>
+<ol>
+<li>운영 담당자가 승인 식별자, 작업 창, W·D 배포 커밋, 증거 보관 위치를 기록한다.</li>
+<li>운영 migration 원장에서 H1의 선행 main 5개가 이미 적용됐는지 확인한다. 버전과 SQL SHA256을 매니페스트와 대조한다. 아래 미적용 15개가 모두 없고 원장이 검증 당시보다 앞서지 않았는지 확인한다. 차이가 있으면 적용 계획을 다시 검토한다.</li>
+<li>웹 결제 전용 등록·청구 진입을 닫는다. 배포 전과 <code>current10</code> 직후에 새 웹 주문과 청구가 허용되지 않는지 확인한다.</li>
+<li>웹 verification·settlement의 기존 스케줄, 진행 중 요청, 활성 lease 및 DB 트랜잭션을 조회한다. 재시도·자동 재시작·외부 스케줄러도 대조한다. 실행 상태가 불명확하면 적용을 시작하지 않는다.</li>
+<li>공용 <code>wallet-operation-worker</code>가 처리하는 모바일 구매와 환불을 보존한다. 웹 진입과 웹 작업의 종료를 별도로 증명한다. 공용 스케줄 중단이 필요한 경우에는 영향 범위와 복구 조건을 별도로 승인받는다.</li>
+</ol>
+<h2>운영 읽기 전용 관측</h2>
+<p>2026-11-23 09:53 KST에 <code>PICNIC-PROD</code>의 migration 원장, <code>wallet_provider_event_inbox</code>와 <code>cron.job</code>을 조회했다. 원장 최신 버전은 <code>20261120120000</code>이다. main 5개는 모두 기록돼 있고, 대상 15개와 <code>WEB_PURCHASE_V2</code> 행은 0건이다. 공용 작업자 cron은 1개가 활성이고 웹 재조정 cron은 0개다. 실제 작업 창에서 다시 조회한다.</p>
+<p>2026-11-24 14:20:10 KST에 <code>PICNIC-PROD</code>를 읽기 전용 트랜잭션으로 다시 조회했다. PostgreSQL 버전은 <code>150008</code>, 원장 최신 버전은 <code>20261120120000</code>이었다. 선행 5개 원장의 이름과 단일 SQL 텍스트 SHA256은 최종 키트와 일치했다. 대상 15개는 모두 미적용이었다. 웹 공급자 설정 테이블과 <code>WEB_PURCHASE_V2</code> 행은 없었다. 공용 지갑 작업자와 heartbeat cron은 각각 1개가 활성 상태였고 웹 결제 이름의 cron은 0개였다. heartbeat 함수 정의 지문은 적용 전 기대값 <code>09e4bce61e168e836e5202a0ccee5c93</code>과 일치했다.</p>
+<p>조회 당시 migration 원장, 04번의 <code>wallet_provider_event_inbox</code>와 <code>receipts</code>, 07번의 <code>purchase_reward_snapshots</code>에서 해당 단계와 호환되지 않는 잠금 보유나 잠금 대기를 관측하지 않았다. 07번 테이블은 본체 6,373,376바이트, 총 10,870,784바이트로 격리 리허설 규모보다 작았다. 잠금과 크기는 승인된 작업 창의 각 단계 직전에 다시 확인한다. 관측 당시 D는 <code>416daf83</code>, W는 <code>b33120cc</code>였다. 생성 매니페스트 SHA256은 <code>819653f53ea7047cae5f5c033392fa3accdabadb610dcec4e88cb6a88ff94703</code>이고, 조회 기록의 무결성 확인서 SHA256은 <code>a1228898ff5d578cddd620c7c3d5d799ce20256c0239ea53ab69a73f5e2a0456</code>이다.</p>
+<h2>승인 후 적용 방법</h2>
+<ol>
+<li>운영 원장에 이미 있는 main 마이그레이션 5개는 설치 자료와 대조한다. 이번 적용 대상은 아래 15개다.</li>
+<li>이전 버전이 최신 운영 원장보다 앞선다. 기존 운영 정책에 따라 일괄 <code>--include-all</code>을 사용하지 않고, 아래 파일만 허용하는 적용 키트를 검토한다. 운영 적용 전에 키트의 실제 전송 SQL과 원장 기록을 같은 입력으로 재검증한다.</li>
+<li>각 파일을 검토된 트랜잭션으로 적용한다. 성공한 버전, 이름, 원본 SQL을 원장 기록과 대조한다. 실행 결과가 불명확하면 원장과 카탈로그를 확인한 뒤 다음 파일로 이동한다.</li>
+<li><code>current10</code> 뒤 M1–M5를 순서대로 적용한다. 이 구간에서 웹 소비자를 시작하지 않는다. 일부 파일만 성공했으면 진입 차단을 유지하고 확인된 적용 내역을 보존한다.</li>
+<li>실제 카탈로그에서 서비스 RPC 분류, 실행 권한, private 함수 접근 제한, RLS, 불변 증거 보호를 대조한다. <code>assert_wallet_service_rpc_manifest()</code>, S8의 claim·버전 검사, M4 적용 뒤의 상태 점검과 경보를 확인한다. M4가 바꾼 heartbeat 함수의 지문과 checker를 별도 검토한다.</li>
+<li>운영 승인 범위에서 호환 W·D 소비자를 배포한다. 지급 전 환불 보호를 포함한 작업자 커밋을 대조한다. 웹 재조정 cron과 secret, provider credential, PayPal COMPLETE는 각각 해당 승인 조건을 확인한 뒤에만 연다.</li>
+</ol>
+<h2>운영 원장에 이미 있는 main 마이그레이션</h2>
+<p>원장은 원본 SQL을 <code>statements</code> 배열에 저장한다. 해당 다섯 버전에서 각 배열이 한 요소인지 확인하고, 저장 SQL의 UTF-8 바이트 SHA256을 소스 고정값과 비교한다. 다음 표의 H1 실행 해시는 앞뒤에 <code>BEGIN</code>과 <code>COMMIT</code>을 붙인 문자열 값이다.</p>
+<div class="scroll"><table><thead><tr><th scope="col">파일</th><th scope="col">원본 SHA256</th><th scope="col">H1 실행 SHA256</th></tr></thead><tbody>
+<tr><td><code>20261116000000_bonus_history_parent_index.sql</code></td><td><code>5ada01c4d0ee57a9e762909dec54891aa5e3d2bfa4733cac84530206fa8d07ad</code></td><td><code>f99a1cabd038aba979bffbf6accc8bafeefa46a07c6d5f56729e17d6127888ea</code></td></tr>
+<tr><td><code>20261116010000_refund_evidence_user_scope.sql</code></td><td><code>8d0057178fe1530549ccde189cea0b502713888868cb508fc5790463d281c344</code></td><td><code>ec02a96a4b1971fc399a1e6b6c7a6acf3fbfe44b40d8ec1d92fa6f5e91efecf7</code></td></tr>
+<tr><td><code>20261116020000_vote_lock_key_share.sql</code></td><td><code>962f22588655687e1950074f1a2701eb207fa266cca1014bb486dc9c1d414f6a</code></td><td><code>73b6609effc849784a2a1575677b94f52c61e9b479675fe4aa0a26b11226c6c5</code></td></tr>
+<tr><td><code>20261120090000_bonus_projection_check_open_buckets.sql</code></td><td><code>a0e79f492d4635312a9c934081e71aaee4092fb8e7a8e3d8744997d19c10b8df</code></td><td><code>1ea112411a3d10fa28c6f2c8bca1acd1343ef731efc2c5cd40ccf84c8d6323b9</code></td></tr>
+<tr><td><code>20261120120000_purchase_pregrant_refund_gate.sql</code></td><td><code>d497929b789a288e1a1be1a59374096d5fba682002d55282453e9f66921b9196</code></td><td><code>7b1e1547970314b6a18420c0c6b42f93b75a4cf9b6144e17a8c94918f327f744</code></td></tr>
+</tbody></table></div>
+<h2>미적용 15개의 순서와 SQL 고정값</h2>
+<div class="scroll"><table><thead><tr><th scope="col">순서</th><th scope="col">파일</th><th scope="col">SHA256</th></tr></thead><tbody>
+<tr><td>current10 · 1</td><td><code>20261111224520_web_payment_order_contract.sql</code></td><td><code>04db55cf53efe3cebd07b3c08dab9b93d96c54e1ec551209a159062b1078ad83</code></td></tr>
+<tr><td>current10 · 2</td><td><code>20261112071844_web_payment_charge_lease.sql</code></td><td><code>9ffeacecf6b51f5bcc3c15388f0fc7dcf3b15f7e1b2658feaa37c807bff8feff</code></td></tr>
+<tr><td>current10 · 3</td><td><code>20261112081856_web_payment_provider_observation.sql</code></td><td><code>8e8902a6f5fa649a1351c42a0a13b72d6489db2ab9f1bf30d4055a521036e753</code></td></tr>
+<tr><td>current10 · 4</td><td><code>20261112094913_web_payment_purchase_intake.sql</code></td><td><code>fdced8bbcb3cbefd4177fcf5f9a48bc5030ea3d3bd48fc8839b6b507a8a250dd</code></td></tr>
+<tr><td>current10 · 5</td><td><code>20261112113100_web_payment_verification_binding.sql</code></td><td><code>983b01a5c571eb9a9d86593b53f9488c1f91165169eacfd24d142eb3886435ee</code></td></tr>
+<tr><td>current10 · 6</td><td><code>20261112124327_web_payment_verification_result.sql</code></td><td><code>f314fcdf06c7d5345a769d26ef02b250d7606249b5e339fee585fcdf3f52ab2f</code></td></tr>
+<tr><td>current10 · 7</td><td><code>20261112145247_web_payment_settlement.sql</code></td><td><code>652ddd1d1423f1f159f377156d953f9e98ca32a8e4af0aa520b388426079319e</code></td></tr>
+<tr><td>current10 · 8</td><td><code>20261114015304_web_payment_charge_gate.sql</code></td><td><code>56a2f94505adcdac42cd7226d7ab3f3403080eded156f97a17867900db4dd188</code></td></tr>
+<tr><td>current10 · 9</td><td><code>20261115075731_web_payment_provider_binding_read.sql</code></td><td><code>f98c2e7b337b8727ad161ae65ca4e0452434e6fbd1865715c1b3f2f4ccd164f6</code></td></tr>
+<tr><td>current10 · 10</td><td><code>20261115122716_web_payment_provider_entry.sql</code></td><td><code>d45b06d567df0f85f2857e910f51c41151eb0e5330413c3e11b5175395b1203c</code></td></tr>
+<tr><td>M1</td><td><code>20261117035820_web_payment_durability_ledger.sql</code></td><td><code>bc59f5af88f75753157d0756b798e6bc4894bb0d62a5ee7657d6453f886aeee1</code></td></tr>
+<tr><td>M2</td><td><code>20261117051844_web_payment_submission_results.sql</code></td><td><code>f551f4faa0dd88b5a228690794881718a318f985c607d3916998f25387323aff</code></td></tr>
+<tr><td>M3</td><td><code>20261117070424_web_payment_intake_admission.sql</code></td><td><code>cd52d222310419e5a9fabd5a3f7e39174f5a8902cc2055575b424b3a3314495a</code></td></tr>
+<tr><td>M4</td><td><code>20261117093017_web_payment_reconciliation_queue.sql</code></td><td><code>d58c5bba42796bffb039a17e0acd5a722eb855986b0f5ae80c3840a63178b137</code></td></tr>
+<tr><td>M5</td><td><code>20261117120247_web_payment_absence_release.sql</code></td><td><code>b5a02a46a12756987d0ae418ca1ade0f61e8271714234a925dfe1fcca1062492</code></td></tr>
+</tbody></table></div>
+<h2>검증 기록</h2>
+<p>검증에 사용한 DB 워크트리 <code>/Users/charlie.hyun/orca/workspaces/picnic-supabase/web-payment-pg15-integration</code>. 원본 실행 기록과 매니페스트는 비공개 증거 폴더 <code>/Users/Shared/ai-agent-config-backups-charlie/usage-evidence/envelopes/web-payment-h1-pg15.KFcbS7Lf/execution-evidence</code>에 있다.</p>
+<ul>
+<li><code>db-operational.log</code> SHA256 <code>f64aa87f8ed8fdb833f770e5398784a8f02cb42747e58a248e40f1bb1b65ae1b</code></li>
+<li><code>db-lexicographic.log</code> SHA256 <code>7604f91c0eda3fdfcc6ec1497bfb6f016ea6e390021762c8ff0b3d6df8d8446c</code></li>
+<li><code>db-portone-overlap.log</code> SHA256 <code>592e91a53709e820f853f5ed41a6b49a7e09e41cfbd98667f9f7ef29dd09e49b</code></li>
+</ul>
+<h2>중단 기준</h2>
+<p>원장이나 적용 상태가 불명확하거나 권한·상태 점검에 실패하면 새 웹 작업에 대한 차단을 유지한다. 실제 원장·카탈로그·lease·상태 점검 기록을 보관한다. 성공으로 표시하지 않는다. 복구 또는 적용 재개는 확인된 상태와 승인된 절차를 따른다.</p>
+<p><code>picnic-supabase/supabase/prod-cutover/2026-11-17-web-payment-reconciliation-cron/kit.html</code> · <a href="2026-11-17-web-payment-u3-c-validation.html">기존 결제 내구성 검증 보고서</a></p>
+</main></body></html>

@@ -1,267 +1,33 @@
-import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { afterEach, expect, it, vi } from 'vitest';
 import { NextRequest } from 'next/server';
-
-/**
- * PayPal create/capture 계약 테스트 (docs/audit-2026-09-26/tests-security.md §3.3).
- *
- * - 일반 `it`: 현재 안전한 계약(인증·DB 상품 기준 지급량·금액 대조·멱등)을 고정한다.
- * - `it.fails`: 알려진 결함(U-04, B-P3 — 소유권·금액 검증 전에 PayPal capture 를 호출).
- *   수정되면 뒤집히므로 그때 `it` 으로 전환한다.
- *
- * PayPal HTTP 는 fetch mock 으로, 적립은 service-role rpc mock 으로 호출 횟수까지 검증한다.
- */
-const mocks = vi.hoisted(() => ({
-  user: { id: 'user-a' } as { id: string } | null,
-  product: { id: 'STAR_100', product_name: 'Star 100', web_price_usd: 9.99, star_candy: 100, web_bonus_amount: 10 } as
-    | Record<string, unknown>
-    | null,
-  existingReceipt: null as Record<string, unknown> | null,
-  capture: null as Record<string, unknown> | null,
-  rpcResult: { receipt_id: 7 } as unknown,
-  rpc: vi.fn(),
-  fetch: vi.fn(),
-}));
-
-vi.mock('@/utils/star-candy-bonus', () => ({ getStarCandyBonusExpiryISO: () => '2027-01-01T00:00:00Z' }));
-
-vi.mock('@/lib/supabase/server', () => ({
-  isWithdrawnUser: async () => false,
-  createServerSupabaseClient: async () => ({
-    auth: { getUser: async () => ({ data: { user: mocks.user }, error: null }) },
-    from: (table: string) => {
-      const b: Record<string, unknown> = {};
-      Object.assign(b, {
-        select: () => b,
-        eq: () => b,
-        maybeSingle: async () => ({
-          data: table === 'products' ? mocks.product : table === 'receipts' ? mocks.existingReceipt : null,
-          error: null,
-        }),
-      });
-      return b;
-    },
-  }),
-}));
-
-vi.mock('@supabase/supabase-js', () => ({
-  createClient: () => ({ rpc: mocks.rpc }),
-}));
-
 import { POST as createOrder } from '@/app/api/payment/paypal/create-order/route';
 import { POST as captureOrder } from '@/app/api/payment/paypal/capture-order/route';
 
-const json = (body: unknown, status = 200) =>
-  new Response(JSON.stringify(body), { status, headers: { 'content-type': 'application/json' } });
+const calls = vi.hoisted(() => ({ auth: vi.fn(), service: vi.fn() }));
+vi.mock('@/lib/supabase/server', () => ({
+  createServerSupabaseClient: calls.auth, createSupabaseServerClient: calls.auth,
+}));
+vi.mock('@supabase/supabase-js', () => ({ createClient: calls.service }));
 
-const completedCapture = (custom: Record<string, unknown>, amount = { value: '9.99', currency_code: 'USD' }) => ({
-  id: 'CAPTURE-1',
-  status: 'COMPLETED',
-  purchase_units: [{ custom_id: JSON.stringify(custom), amount, payments: { captures: [{ id: 'C1', status: 'COMPLETED', amount }] } }],
+afterEach(() => {
+  vi.clearAllMocks();
+  vi.unstubAllGlobals();
 });
 
-const paypalCalls = (pathFragment: string) =>
-  mocks.fetch.mock.calls.filter(([url]) => String(url).includes(pathFragment)).length;
-
-const req = (path: string, body: unknown) =>
-  new NextRequest(`https://www.picnic.fan${path}`, {
-    method: 'POST',
-    headers: { 'content-type': 'application/json' },
-    body: JSON.stringify(body),
-  });
-
-beforeEach(() => {
-  mocks.user = { id: 'user-a' };
-  mocks.product = { id: 'STAR_100', product_name: 'Star 100', web_price_usd: 9.99, star_candy: 100, web_bonus_amount: 10 };
-  mocks.existingReceipt = null;
-  mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-a' });
-  mocks.rpcResult = { receipt_id: 7 };
-  mocks.rpc.mockReset().mockImplementation(async () => ({ data: mocks.rpcResult, error: null }));
-  mocks.fetch.mockReset().mockImplementation(async (url: string) => {
-    if (url.includes('/v1/oauth2/token')) return json({ access_token: 'token' });
-    if (url.endsWith('/capture')) return json(mocks.capture);
-    if (url.endsWith('/v2/checkout/orders')) return json({ id: 'ORDER-1' });
-    return json({}, 404);
-  });
-  vi.stubGlobal('fetch', mocks.fetch);
-});
-
-describe('PayPal create-order — 현재 계약', () => {
-  it('비로그인은 401, PayPal 호출 0', async () => {
-    mocks.user = null;
-    const res = await createOrder(req('/api/payment/paypal/create-order', { productId: 'STAR_100' }));
-
-    expect(res.status).toBe(401);
-    expect(mocks.fetch).not.toHaveBeenCalled();
-  });
-
-  it('존재하지 않는 상품은 400, PayPal 주문 생성 0', async () => {
-    mocks.product = null;
-    const res = await createOrder(req('/api/payment/paypal/create-order', { productId: 'NOPE' }));
-
-    expect(res.status).toBe(400);
-    expect(paypalCalls('/v2/checkout/orders')).toBe(0);
-  });
-
-  it('주문 금액은 클라이언트가 아니라 DB 상품 가격으로 만든다', async () => {
-    const res = await createOrder(req('/api/payment/paypal/create-order', { productId: 'STAR_100', amount: '0.01' }));
-
-    expect(res.status).toBe(200);
-    const [, init] = mocks.fetch.mock.calls.find(([url]) => String(url).endsWith('/v2/checkout/orders'))!;
-    const order = JSON.parse((init as RequestInit).body as string);
-    expect(order.purchase_units[0].amount).toMatchObject({ currency_code: 'USD', value: '9.99' });
-  });
-});
-
-describe('PayPal capture-order — 현재 계약', () => {
-  it('비로그인은 401, PayPal 호출 0', async () => {
-    mocks.user = null;
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(401);
-    expect(mocks.fetch).not.toHaveBeenCalled();
-  });
-
-  it('정상 캡처는 DB 상품 기준 지급량으로 정확히 1회 적립한다', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-a', starCandy: 999999 });
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(200);
-    expect(mocks.rpc).toHaveBeenCalledTimes(1);
-    expect(mocks.rpc.mock.calls[0][1]).toMatchObject({ p_user_id: 'user-a', p_star_candy: 100, p_bonus_amount: 10 });
-  });
-
-  it('캡처 금액·통화가 DB 상품과 다르면 400 무적립', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-a' }, { value: '0.01', currency_code: 'USD' });
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(400);
-    expect(mocks.rpc).not.toHaveBeenCalled();
-  });
-
-  it('다른 사용자의 주문이면 403 무적립', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-b' });
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(403);
-    expect(mocks.rpc).not.toHaveBeenCalled();
-  });
-
-  it('이미 처리된 주문(영수증 존재)은 적립하지 않는다', async () => {
-    mocks.existingReceipt = { id: 1 };
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(400);
-    expect(mocks.rpc).not.toHaveBeenCalled();
-  });
-
-  it('RPC 가 NULL(멱등 단락)이면 이미 처리됨 응답', async () => {
-    mocks.rpcResult = null;
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(res.status).toBe(400);
-    expect((await res.json()).error).toBe('Payment already processed');
-  });
-});
-
-describe('PayPal route diagnostic context and provider privacy', () => {
-  const USER = '00000000-0000-0000-0000-000000000001';
-  const PRIVATE = 'Q7pPriv private-payer@example.invalid opaque-provider-secret';
-  beforeEach(() => {
-    mocks.user = { id: USER };
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-  afterEach(() => vi.restoreAllMocks());
-  function checkRecord(code: string, context: Record<string, unknown>) {
-    // 4xx 는 WARN, 그 밖은 ERROR 로 찍힌다(#75). 레벨은 아래 describe 가 따로 고정한다.
-    const records = [...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls].flat() as Array<{ message?: string; context?: unknown }>;
-    expect(records.find((record) => record?.message === code)?.context).toMatchObject(context);
-    expect(JSON.stringify([...vi.mocked(console.error).mock.calls, ...vi.mocked(console.warn).mock.calls])).not.toContain('Q7pPriv');
-  }
-  it.each(['create', 'capture'] as const)('%s provider failure retains approved IDs/status and hides the provider body', async (operation) => {
-    const providerBody = { message: PRIVATE, payer: { email_address: PRIVATE }, purchase_units: [{ custom_id: PRIVATE }] };
-    mocks.fetch.mockImplementation(async (url: string) => url.includes('/v1/oauth2/token') ? json({ access_token: 'fixture-token' }) : json(providerBody, 422));
-    const response = operation === 'create'
-      ? await createOrder(req('/api/payment/paypal/create-order', { productId: 'STAR_100' }))
-      : await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-    expect(response.status).toBe(500);
-    expect(await response.text()).not.toContain('Q7pPriv');
-    expect(mocks.rpc).not.toHaveBeenCalled();
-    checkRecord(`payment.paypal.${operation}.provider.failed`, { userId: USER, httpStatus: 422, ...(operation === 'create' ? { productId: 'STAR_100' } : { orderId: 'ORDER-1' }) });
-  });
-  it('capture amount mismatch preserves the expected amount and currency without provider metadata', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: USER, secret: PRIVATE }, { value: '0.01', currency_code: 'USD' });
-    const response = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-    expect(response.status).toBe(400);
-    expect(await response.text()).not.toContain('Q7pPriv');
-    expect(mocks.rpc).not.toHaveBeenCalled();
-    checkRecord('payment.paypal.capture.amount.failed', { userId: USER, orderId: 'ORDER-1', amount: 9.99, currency: 'USD' });
-  });
-});
-
-describe('PayPal capture-order — 공급자 실패의 로그 레벨 (#75)', () => {
-  const levelOf = (code: string) => {
-    const lines = (spy: unknown) => (spy as { mock: { calls: unknown[][] } }).mock.calls.map((call) => String(call[0]));
-    if (lines(console.error).some((line) => line.endsWith(` ERROR: ${code}`))) return 'error';
-    if (lines(console.warn).some((line) => line.endsWith(` WARN: ${code}`))) return 'warn';
-    return 'none';
-  };
-  const captureFails = (status: number, ...issues: string[]) =>
-    mocks.fetch.mockImplementation(async (url: string) =>
-      url.includes('/v1/oauth2/token')
-        ? json({ access_token: 'token' })
-        : json({ name: 'X', details: issues.map((issue) => ({ issue, description: 'Q7pPriv' })) }, status));
-  beforeEach(() => {
-    vi.spyOn(console, 'error').mockImplementation(() => {});
-    vi.spyOn(console, 'warn').mockImplementation(() => {});
-  });
-  afterEach(() => vi.restoreAllMocks());
-
-  it.each([
-    [404, 'INVALID_RESOURCE_ID'],
-    [422, 'ORDER_ALREADY_CAPTURED'],
-    [422, 'ORDER_NOT_APPROVED'],
-    [422, 'INSTRUMENT_DECLINED'],
-  ])('PayPal %s %s(주문 쪽 문제)는 500 응답을 유지하고 WARN', async (status, issue) => {
-    captureFails(status, issue);
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-    expect(res.status).toBe(500);
-    expect(levelOf('payment.paypal.capture.provider.failed')).toBe('warn');
-    expect(mocks.rpc).not.toHaveBeenCalled();
-  });
-
-  it.each([
-    [422, ['AUTH_CAPTURE_NOT_ENABLED']],
-    [422, ['TRANSACTION_RECEIVING_LIMIT_EXCEEDED']],
-    [422, ['ORDER_ALREADY_CAPTURED', 'PAYEE_ACCOUNT_RESTRICTED']],
-    [422, []],
-    [401, ['ORDER_ALREADY_CAPTURED']],
-    [403, []],
-    [429, []],
-    [500, []],
-    [503, []],
-  ])('PayPal %s %j(판매자 설정·인증·한도·장애·모르는 issue)는 ERROR', async (status, issues) => {
-    captureFails(status, ...issues);
-    const res = await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-    expect(res.status).toBe(500);
-    expect(levelOf('payment.paypal.capture.provider.failed')).toBe('error');
-  });
-});
-
-describe('PayPal capture-order — 알려진 결함 (수정 시 it 으로 전환)', () => {
-  // U-04: 주문 조회·소유권 확인 없이 먼저 capture 한다 → 타인 주문을 제출하면 결제는 확정되고 적립만 거부된다.
-  it.fails('다른 사용자의 주문은 capture 호출 전에 403 이어야 한다', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-b' });
-    await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(paypalCalls('/capture')).toBe(0);
-  });
-
-  // U-04: 금액 불일치도 capture 이후에 판정한다 → 잘못된 금액의 결제가 확정된다.
-  it.fails('금액이 DB 상품과 다르면 capture 호출 전에 거부해야 한다', async () => {
-    mocks.capture = completedCapture({ productId: 'STAR_100', userId: 'user-a' }, { value: '0.01', currency_code: 'USD' });
-    await captureOrder(req('/api/payment/paypal/capture-order', { orderID: 'ORDER-1' }));
-
-    expect(paypalCalls('/capture')).toBe(0);
-  });
+it.each([
+  ['create-order', createOrder, { productId: 'STAR_100', amount: '0.01', userId: 'old-client' }],
+  ['capture-order', captureOrder, { orderID: 'ANOTHER-USERS-ORDER' }],
+  ['capture-order', captureOrder, { orderID: 'ORDER1', amount: '0.01' }],
+] as const)('retires the legacy %s entry without an auth, database or provider call', async (path, handler, body) => {
+  const fetcher = vi.fn();
+  vi.stubGlobal('fetch', fetcher);
+  const response = await handler(new NextRequest('https://www.picnic.fan/api/payment/paypal/' + path, {
+    method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body),
+  }));
+  expect(response.status).toBe(410);
+  expect(response.headers.get('cache-control')).toContain('no-store');
+  expect(await response.json()).toEqual({ error: 'LEGACY_PAYPAL_ROUTE_RETIRED' });
+  expect(calls.auth).not.toHaveBeenCalled();
+  expect(calls.service).not.toHaveBeenCalled();
+  expect(fetcher).not.toHaveBeenCalled();
 });

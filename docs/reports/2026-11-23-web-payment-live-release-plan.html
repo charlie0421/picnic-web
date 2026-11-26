@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>PICNIC 웹 결제 고객 출시 준비</title>
+<style>
+body{font:16px/1.65 system-ui,sans-serif;max-width:900px;margin:3rem auto;padding:0 1.2rem;color:#172c3d}
+h1,h2{line-height:1.3}h2{margin-top:2rem}li{margin:.55rem 0}
+code{overflow-wrap:anywhere}a{color:#175a87}
+</style>
+</head>
+<body><main>
+<h1>PICNIC 웹 결제 고객 출시 준비</h1>
+<p><strong>2026-11-24 · 운영 DB 적용 완료, 고객 출시 대기.</strong> PostgreSQL 15.8을 기준으로 한다. 새 PayPal 결제에서 구매 승인부터 지급까지 검증한 뒤 고객에게 연다. 적용 순서는 기존 운영 승인 범위를 따른다.</p>
+<h2>확인한 운영 상태</h2>
+<p>2026-11-24 14:42 KST에 <code>PICNIC-PROD</code>에서 승인된 웹 결제 DB 마이그레이션 15개를 적용했다. 각 원장의 SQL 해시와 최종 RPC 매니페스트를 확인했다. 웹 등록·청구 플래그는 모두 닫혀 있고 웹 결제 cron은 0개다. 기존 공용 지갑 작업자와 heartbeat cron은 활성 상태다. <a href="2026-11-23-web-payment-og2-pg15-readiness.html">운영 DB 적용 기록</a></p>
+<p>같은 날 16:42 KST에 읽기 전용 조회로 열린 등록·청구 플래그 0개, 웹 결제 cron 0개, <code>WEB_PURCHASE_V2</code> 행 부재를 확인했다. 운영 Edge Function은 <code>wallet-operation-worker</code> 버전 39와 <code>wallet-provider-event</code> 버전 37이 활성 상태였다.</p>
+<p>2026-11-24 22:06–22:07 KST에 <code>PICNIC-PROD</code>를 다시 조회했다. PostgreSQL 버전은 <code>150008</code>이다. 열린 등록·청구 플래그는 0개, 등록된 웹 결제 cron은 0개다. <code>WEB_PURCHASE_V2</code> 행은 없었다. 공용 지갑 작업자와 heartbeat 평가자의 최근 cron 실행은 성공으로 기록됐다. heartbeat 함수의 MD5는 전환 후 기준 <code>02ee46003c64d73f6f9dcd9c64794757</code>와 일치했다. 아직 HEALTH 작업이 없는 상태에서 <code>web-payment:job:stale:HEALTH</code> 경보 1건이 미해결로 남아 있다. 활성 Edge Function은 <code>wallet-operation-worker</code> 버전 39와 <code>wallet-provider-event</code> 버전 37이다. 조회 기록 SHA-256은 <code>7820efd5837b9ee87214a45ce16fbc7de74b7a08df58476b2d24bdddf15b7a9f</code>다.</p>
+<p>운영 DB 적용 전인 2026-11-23 19:18:04 KST에 <code>PICNIC-PROD</code>의 서버 버전과 원장·등록 정보를 읽기 전용으로 조회했다. 서버 버전은 <code>150008</code>, 원장 최신 버전은 <code>20261120120000</code>이다. 선행 5개의 원장 이름과 단일 SQL 텍스트의 SHA256이 고정 소스와 일치했다. 대상 15개는 모두 미적용 상태다. 웹 공급자 설정 테이블은 없으며, 공용 지갑 작업자 cron은 활성 1개, 웹 재조정 cron은 0개다. 적용 작업 창에서 선행 원장과 등록·청구 상태를 다시 확인했다.</p>
+<h2>11월 24일 최신 후보 재검증</h2>
+<p>22:06 KST에 웹 Draft PR <a href="https://github.com/charlie0421/picnic-web/pull/146">#146</a>의 <code>2123ddfc</code>에서 검사 2개가, DB Draft PR <a href="https://github.com/charlie0421/picnic-supabase/pull/376">#376</a>의 <code>bcf4f7c9</code>에서 검사 24개가 성공한 것을 확인했다.</p>
+<p>웹 <code>2123ddfc</code>의 <code>npm run build</code>와 TypeScript 검사가 통과했다. 빌드한 앱의 루프백 HTTP 검사 6개가 통과했다. 기존 API 2개는 410, 다른 Origin은 403, 미인증 주문 연결과 상태 조회는 각각 401, 대사 secret이 없는 내부 호출은 503을 반환했다. 이 요청의 Supabase fixture 호출은 0건이다. 웹 빌드 기록 SHA-256은 <code>57c6db4aeef513c291b332fce587f4dcf366ec66a69f966d332617f883b3613b</code>다.</p>
+<p>웹 <code>2123ddfc</code>와 DB <code>bcf4f7c9</code>에서 PostgreSQL 15.8과 로컬 PostgREST로 H1을 실행했다. 정상 단계의 검사 315개, 장애 단계의 검사 325개가 통과했다. 장애 단계는 재시작 증명 4건을 남겼다. M1–M5를 설치하지 않은 실행은 계약 17개가 빠진 것을 확인하고 PostgREST와 Node 실행 전에 종료했다. 세 실행 모두 소스 해시가 유지됐고 전용 컨테이너와 네트워크의 제거가 확인됐다. PayPal 응답과 자격 증명은 시험용이다. 매니페스트 SHA-256은 <code>10a0307a6cb940907049ed6dc7df3b528a7185a1c6a7e8e15ea9bf26691efa87</code>다.</p>
+<p>H1 실행 기록 SHA-256은 정상 <code>e8c2ef10f3329e8eb84c1fc06ebf37425f1cdc150f50dfaed55a4239756da5db</code>, 장애 <code>4ad5bd4775d2f8457aafc78088db292862bdb50cdf1b8c3940c432d6daa128df</code>, 계약 부재 <code>291def762ae4f6af54589245e5c08dcd6624ac56e9014ce0edd1f90b6915aaac</code>이다.</p>
+<p>H1 검사기 시험 71개, 적용 키트 시험 12개와 Edge preflight 검사기 시험 96개가 통과했다. 지갑 운영 검사기 시험은 40개 통과, 1개 건너뜀이다.</p>
+<h2>고객 출시까지의 순서</h2>
+<ol>
+<li><strong>PostgreSQL 적용 키트를 마무리한다.</strong> 선행 5개 해시를 대조하고, <code>current10</code>과 M1–M5를 한 파일씩 적용할 고정 산출물을 검토한다. 각 파일은 SQL 본문과 원장 삽입을 한 트랜잭션으로 실행한다. 격리 PostgreSQL 15.8에서 대상 15개와 첫 파일 원장 충돌의 롤백을 확인했다.</li>
+<li><strong>웹 구매 화면을 서버 주문에 연결한다.</strong> U3·U4에 따라 서버가 고정한 견적과 주문을 사용하도록 로컬 코드를 전환했다. 구매 승인 콜백에서만 청구한다. 기존 진입 조건은 샌드박스 검증과 운영 승인까지 유지한다. <a href="https://developer.paypal.com/v5/checkout/getting-started/">PayPal Checkout 연결 절차</a></li>
+<li><strong>PayPal 지급 계약을 완성한다.</strong> 현재 웹 재조정의 운영 resolver는 닫혀 있다. DB와 지급 검증 워커도 PayPal <code>COMPLETE</code>를 <code>COMPLETION_EVIDENCE_REQUIRED</code>로 보류한다. 승인된 범위에서 서버 전용 자격 증명을 결제 환경, 판매자, 고정 주문 binding에 연결한다. 최초 완료 시점을 입증할 공급자 증거와 DB 수용 조건을 검증한다. 거래 생성 시각이나 최근 갱신 시각을 최초 완료 시각으로 바꾸지 않는다.</li>
+<li><strong>샌드박스에서 결제부터 지급·환불까지 확인한다.</strong> 기존 시작점부터 실제 공급자 샌드박스와 서버, 주문·청구·대사·지급 기록을 함께 확인한다. 구매 승인 없는 청구 0건, 중복 청구와 지급 0건, 결과 유실 뒤 보류, 정상 고객의 지급 1건과 환불 시 회수를 검사한다. 고객 출시 전에 운영 점검 도구의 M4 heartbeat 지문, 처리 지연과 경보를 검증한다.</li>
+<li><strong>승인된 작업 창에서 호환 웹 앱과 Supabase 작업자를 배포한다.</strong> 적용된 원장과 RPC, 권한, RLS를 확인한다. 웹 등록·청구가 닫힌 상태에서 웹 요청과 리스 종료를 확인한다. 배포 전후 버전, 공용 지갑 작업자의 모바일 구매·환불 처리와 heartbeat 경보를 대조한다.</li>
+<li><strong>승인된 범위에서 고객에게 연다.</strong> 운영 자격 증명, 재조정 cron, 실제 공급자 호출 및 <code>COMPLETE</code>를 검증 결과에 맞춰 승인받는다. 제한된 범위에서 운영 확인을 시작한다. 각 승인 및 관측 범위를 기록한다. 미확인 주문의 보류 해제와 실제 ADVERSE 해결은 해당 주문의 운영 절차에 따른다.</li>
+</ol>
+<h2>서버 주문·구매 화면 로컬 연결</h2>
+<ul>
+<li>PayPal 주문 연결, 청구, 대사, 상태 조회용 새 API를 서버 주문 경로에 추가했다. 서버 세션에서 사용자 ID를 얻고, 청구 요청에는 승인된 PayPal 주문 ID만 허용한다. API에 유효한 주문 ID가 있으면 내부 장애는 고정된 503 DTO로 응답한다.</li>
+<li>구매 화면은 명시적 국가 입력과 약관 동의 뒤 서버 견적을 보여준다. PayPal 승인 콜백에서만 청구한다. PayPal 주문 연결을 시작한 뒤 취소, 오류 또는 창 닫힘이 발생하면 대사를 요청한다. 서버 상태가 <code>GRANTED</code>일 때 지급 완료를 표시한다.</li>
+<li>같은 탭의 세션 저장소에 주문 요청 ID와 청구 시도 여부를 각각 전송 전에 저장한다. 다른 상품을 선택했거나 이전 견적이 만료되면 이전 주문의 청구 창을 닫아 둔다. 두 경우 모두 서버가 미제출·접수 없음·검토 불필요를 확인하고 이 탭의 청구 시도 기록도 없을 때만 이전 시도를 정리한다. 주문 API가 확정 거절한 경우에도 입력을 바꿀 수 있다. 전송 결과가 불확실하면 같은 요청 ID를 보존한다. 복구 범위는 같은 로그인 세션의 같은 탭이다.</li>
+<li>기존 PayPal 주문 생성과 청구 API는 410을 반환한다. 폐쇄 시험에서 인증, DB, 공급자 호출 모두 0회였다. 예전 경로의 두 예상 실패는 폐쇄 회귀로 대체했다. 서버 청구 코어의 소유권·금액 회귀는 유지했다.</li>
+<li>샌드박스 UI 검증에는 명시적 PayPal SDK 환경, 공개 client ID, 실제 약관 버전이 필요하다. 서버 자격 증명 조회는 현재 닫혀 있다. 이 구현은 공급자 호출, 실제 앱 세션이나 운영 배포 증거를 포함하지 않는다.</li>
+</ul>
+<h2>PayPal 완료 증거의 남은 조건</h2>
+<p>PayPal은 <code>PAYMENT.CAPTURE.COMPLETED</code> 웹훅을 완료 신호로 문서화한다. 이벤트의 <code>create_time</code>은 알림 생성 시각이다. 보류 뒤 최초로 완료된 시점을 입증하는 근거와 지급 수용 조건은 확인 대기 중이다. <a href="https://developer.paypal.com/payment-methods/webhooks/">PayPal 결제 웹훅</a> · <a href="https://developer.paypal.com/api/webhooks/v1/definitions/event/">이벤트 필드 정의</a></p>
+<p>정산 보고서의 <code>transaction_completion_date</code>는 완료 시점의 후보 증거다. PayPal은 이 필드를 거래 완료 일시로 정의하며 빈 값을 허용한다. 보고서는 승인된 판매자에게 SFTP로 하루 한 번 제공된다. 해당 판매자의 접근 권한, 청구 ID와 보고서 행의 일치, 보류에서 완료로 바뀐 거래와 환불된 거래의 시각 보존 여부는 확인 대기 중이다. <a href="https://developer.paypal.com/reports/settlement/">PayPal 정산 보고서 명세</a></p>
+<p>2026-11-24에 기존 Sandbox 앱의 OAuth 인증(HTTP 200), USD 1.23 주문 생성(HTTP 201), 주문 조회(HTTP 200)를 확인했다. 조회 결과는 주문 참조와 금액 및 통화가 일치했고, 판매자 ID는 대시보드의 한국 테스트 비즈니스 계정과 일치했다. 조회 당시 주문 상태는 <code>CREATED</code>였고 청구는 0건이었다. 이 확인은 PayPal 샌드박스 API에서 직접 수행했다.</p>
+<ul>
+<li>2026-11-24에 새 미국 Sandbox 개인 구매자가 같은 USD 1.23 주문을 승인했다. 주문 조회에서 <code>APPROVED</code>, 구매자 국가 <code>US</code>, 청구 0건을 확인했다. 승인 뒤 청구 요청은 HTTP 201과 <code>COMPLETED</code> 청구 1건을 반환했다. 응답에서 주문 참조, 판매자, 통화 및 금액이 일치했다.</li>
+<li>전액 환불은 HTTP 201과 <code>COMPLETED</code>를 반환했다. 재조회한 청구 상태는 <code>REFUNDED</code>였다. 임시 수신기는 완료·환불 웹훅 각 1건의 서명을 검증했다. 완료 이벤트는 주문 ID와 청구 ID가 일치했다. 환불 이벤트는 환불 ID가 일치했고, 환불 API 응답은 원래 청구를 가리켰다.</li>
+<li>완료 청구의 <code>create_time</code>과 당시 <code>update_time</code>은 모두 <code>2026-11-23T16:49:05Z</code>였다. 완료 알림의 생성 시각은 <code>16:49:09.750Z</code>였다. 환불 뒤 청구의 <code>update_time</code>은 <code>16:49:50Z</code>로 바뀌었다. 이번 건은 즉시 완료됐다. 보류 뒤 완료되는 건의 시각은 별도로 검증해야 한다.</li>
+<li>임시 웹훅의 삭제는 HTTP 204였고 재조회 결과 등록 0개였다. 임시 HTTPS 터널과 수신기도 종료했다. 이번 검증 범위는 PayPal Sandbox의 구매 승인·청구·환불·웹훅이다. PICNIC의 실제 PostgreSQL 접수·지급·회수 경로 검증과 운영 출시는 대기 중이다. <a href="https://developer.paypal.com/api/rest/webhooks/rest/">PayPal 웹훅 서명 검증</a></li>
+<li>시험에 사용한 Sandbox 앱에서 Transaction Search 설정은 꺼져 있었다. 정산 보고서 원본과 보류 뒤 완료 사례는 확보 대기 중이다. 샌드박스 검증 요약의 SHA-256은 <code>4d406f5eb62a7907b4535b97b1a9cbc0dd9b449c0aae5e61283d3c5a3674182d</code>다.</li>
+<li>재로그인 후 Sandbox 판매자 활동내역에서 같은 청구와 전액 환불을 확인했다. 거래 상세의 <strong>날짜</strong>는 2026-11-24 01:49:05 KST로 표시됐다. 같은 청구의 직접 API 조회는 청구 ID, <code>supplementary_data.related_ids.order_id</code>, 상위 주문에 포함된 단일 청구, USD 1.23과 <code>REFUNDED</code> 상태를 대조했다.</li>
+<li>판매자의 2026-11-24 활동내역 CSV에서 같은 청구 ID의 완료 행 1건을 확인했다. 금액은 USD 1.23이다. PayPal이 거래 완료 시각으로 정의한 <code>Date</code>, <code>Time</code>, <code>TimeZone</code>을 합치면 2026-11-24 01:49:05 KST다. UTC로 환산하면 <code>2026-11-23T16:49:05Z</code>이며, 서명 검증된 완료 이벤트의 청구 시각과 일치한다. 이번 결과는 즉시 완료 사례다. 보류 뒤 완료 사례와 자동 수집 경로는 확인 대기 중이다. CSV의 SHA-256은 <code>838504367d64b6916cdb140044858165b06a3e6678e669c0ab738f7cae00356c</code>다. <a href="https://developer.paypal.com/reports/activity-download/">PayPal 활동내역 보고서 명세</a></li>
+<li>같은 날 미국 Sandbox 구매자가 기존 당좌계좌를 선택해 새 USD 1.23 주문을 승인했다. 화면에는 카드가 예비 수단으로 표시됐고, 최종 자금 출처는 별도 보고서로 확인하지 않았다. 서버는 <code>APPROVED</code>와 청구 0건을 확인한 뒤 한 번 청구했다. 응답은 HTTP 201과 <code>COMPLETED</code> 청구 1건이었다. 별도 조회에서 주문 참조와 금액을 대조했다. 청구는 <code>2026-11-23T19:13:30Z</code>에 기록됐으며, 주문·청구 ID가 일치하는 서명된 완료 알림은 <code>19:13:34.546Z</code>에 생성됐다. 보류 이벤트는 관측되지 않았다.</li>
+<li>전액 환불의 HTTP 201과 <code>COMPLETED</code>, 원래 청구의 <code>REFUNDED</code>, 환불 ID가 일치하는 서명된 알림을 확인했다. 청구의 <code>update_time</code>은 <code>19:13:55Z</code>로 바뀌었다. 임시 웹훅 삭제는 HTTP 204였고 등록 목록은 0개였다. 수신기와 터널의 종료도 확인했다. 시험 요약의 SHA-256은 <code>0fffdbf40b8e3852830a3f431b6b26d58cd5cc4ae7967db8d84072c67e75312f</code>다.</li>
+</ul>
+<p>자동 수집 후보 중 하나는 PayPal 정산 보고서다. PayPal이 판매자의 보고서 구독을 활성화해야 하며, SFTP는 별도 계정을 사용한다. 거래 조회 API의 시작·최근 변경 시각은 정산 보고서의 완료 필드와 의미가 다르다. 현재 남은 검증은 해당 판매자의 정산 보고서 접근과, 동일 청구가 보류에서 완료된 뒤 그 보고서의 계정·청구 ID·금액 및 완료 시각이 서명 이벤트와 대조되는지 확인하는 것이다. 일일 보고서에 의존하는 지급은 보고서가 도착할 때까지 기다려야 한다. <a href="https://developer.paypal.com/platforms/reports/sftp-access">PayPal SFTP 접근 요건</a> · <a href="https://developer.paypal.com/api/transaction-search/v1/definitions/transaction_detail/">PayPal 거래 조회 필드</a></p>
+<p>거래 상세 보고서도 <code>transaction_completion_date</code>와 거래 ID, 거래 유형, 총액·통화, 상태를 제공한다. 이 보고서도 승인된 판매자의 일일 SFTP 보고서다. 해당 Sandbox 판매자의 접근 가능 여부와 보류가 해제된 청구의 실제 행은 확인 대기 중이다. <a href="https://developer.paypal.com/reports/transaction-detail">PayPal 거래 상세 보고서 명세</a></p>
+<p>2026-11-24 로그인한 한국 Sandbox 판매자의 계정 액세스 화면에서 Secure FTP 사용자가 0명임을 확인했다. 모든 보고서의 정산 보고서 페이지는 일일 구독이 없다고 표시했다. 화면에 구독 버튼은 없었다.</p>
+<p>같은 날 승인 범위에서 한국 Sandbox 판매자의 <code>Payment Review</code>를 시험했다. USD 1.23 주문을 만든 뒤 설정을 켰다. 설정 페이지를 다시 열어 켜짐을 확인한 상태에서 미국 시험 구매자가 주문을 승인했다. 주문 조회는 <code>APPROVED</code>와 청구 0건을 반환했다. 한 번의 청구는 HTTP 201과 <code>COMPLETED</code> 청구 1건을 반환했다. 동일 청구와 상위 주문을 별도 조회로 대조했다. 청구 시각은 <code>2026-11-23T20:41:31Z</code>였고, 서명된 완료 알림은 <code>20:41:35.882Z</code>에 생성됐다. 이 시험에서 <code>PENDING</code> 전환은 관측되지 않았다. 주문 생성 당시 설정은 꺼져 있었다.</p>
+<p>Sandbox USD 1.23 전액 환불과 청구 상태 <code>REFUNDED</code>를 별도 조회로 확인했다. 서명된 환불 웹훅은 환불 ID와 일치했다. <code>Payment Review</code>를 끈 뒤 설정 페이지를 새로 열어 꺼짐을 확인했다. 임시 웹훅을 삭제하고 등록 목록이 0개임을 확인했다. 수신기와 터널도 종료했다. 시험 요약의 SHA-256은 <code>e17b773b4ad65516b1cccad6e4c5c192708f063fc139d71fd7f952322786c4db</code>다.</p>
+<p>후속 시험에서는 <code>Payment Review</code>를 켜고 설정을 재조회한 뒤 USD 1.23 주문 1건을 만들었다. 구매 승인과 청구 때도 설정은 켜져 있었다. 청구 응답과 별도 조회 모두 <code>PENDING</code>과 <code>PENDING_REVIEW</code>를 반환했다. 주문의 상태는 <code>COMPLETED</code>였지만 청구는 보류 상태였다. 청구 생성은 <code>2026-11-24T02:17:50Z</code>, 서명된 보류 알림의 생성은 <code>02:17:54.460Z</code>였다. 알림의 청구 ID 및 상위 주문 ID를 API 응답과 대조했다. <a href="https://developer.paypal.com/api/orders/v2/definitions/order_status/">PayPal 주문과 청구 상태</a></p>
+<p>Sandbox 판매자 화면의 같은 거래에 해제일 <strong>2026-11-25</strong>가 표시됐다. 거래 목록과 상세의 추가 작업 메뉴에서 수락 버튼을 확인하지 못했다. <code>Payment Review</code>를 끄고 재조회했으며 해당 청구는 여전히 <code>PENDING_REVIEW</code>였다. PayPal은 보류 중인 청구에 환불을 허용하지 않는다. 해당 청구의 완료 확인, 완료 시각과 판매자 활동내역 CSV 대조, 전액 환불이 남았다. <a href="https://developer.paypal.com/api/payments/v2/errors/pending_capture/">PayPal 보류 청구의 환불 조건</a></p>
+<p>임시 웹훅은 HTTP 204로 삭제했고 등록 목록은 0개였다. 삭제 후에도 거래 ID로 보류 알림 1건을 다시 조회했다. 구독이 없는 상태에서 이후 완료 알림이 조회될지는 확인 대기 중이다. 수신기와 터널을 종료했다. 시험 요약의 SHA-256은 <code>5a5346ea5fd08dbb5f9692f07d9451cf54a523086361c1e7d508a4c3a8ca8541</code>다. <a href="https://developer.paypal.com/api/webhooks/v1/webhooks-events-list/">PayPal 이벤트 이력 조회</a></p>
+<p>2026-11-25 12:00 KST에 Orca에서 같은 Sandbox 청구의 재조회를 예약했다. 예약은 해당 날짜에만 실행하도록 제한했다. 접속이 가능하면 청구 상태와 확인 가능한 완료 근거를 보고한다. 브라우저 또는 로그인 세션을 사용할 수 없으면 조회 불가를 보고한다. 예약 작업의 권한은 조회와 결과 보고다.</p>
+<h3>기존 Sandbox 청구의 완료 증거 확인</h3>
+<ol>
+<li>예약 조회에서 기존 USD 1.23 청구와 상위 주문 ID를 대조한다. 동일 청구가 <code>COMPLETED</code>인지 청구 API에서 확인한다. 상위 주문의 상태와 해제일은 각각 기록한다.</li>
+<li>판매자 활동내역 CSV에서 해당 청구 ID의 USD 1.23 원래 판매 행을 찾는다. 보고서의 날짜·시간·시간대를 UTC로 환산한다. 조회할 수 있는 완료 이벤트의 청구 ID와 상위 주문 ID를 대조하고, 이벤트 생성 시각을 별도로 기록한다.</li>
+<li>승인된 전액 환불 후 원래 판매 행을 다시 조회한다. 환불 행과 원래 판매 행을 구분하고, 판매 행의 완료 시각이 유지되는지 확인한다.</li>
+<li>청구가 보류 중이거나 완료 시각이 비어 있거나 서로 맞지 않으면 근거 확보를 기다린다. 보고서 접근과 자동 수집을 별도로 입증한 뒤 서버·DB 지급 계약에 적용한다.</li>
+</ol>
+<h3>PayPal 기술지원 문의 초안</h3>
+<p>아래 문의는 Sandbox 정산 보고서 활성화와 최초 완료 시각의 확인 방법을 묻는다. 제출 승인을 기다린다. <a href="https://developer.paypal.com/docs/multiparty/troubleshoot/">PayPal 기술지원 접수 안내</a></p>
+<blockquote lang="en">
+<p><strong>Subject</strong> · Orders v2 Sandbox delayed capture and Settlement Report access</p>
+<p>We are validating order fulfillment for a Korean merchant using PayPal Checkout and Orders v2. Our Sandbox business account shows no daily Settlement Report subscription and no Secure FTP users. Can you confirm whether Settlement Reports (STL) over SFTP are available for this Sandbox account and how to activate the subscription? Please also confirm eligibility for the live merchant account.</p>
+<p>In one Orders v2 test, we enabled the seller's Payment Review after order creation and the capture immediately returned <code>COMPLETED</code>. In a later test, we enabled it before order creation and received <code>PENDING</code> with reason <code>PENDING_REVIEW</code>. The seller's transaction details showed a release date. Please confirm whether there is a supported Sandbox procedure to complete the review for the same capture ID.</p>
+<p>We need to compare a delayed capture with the matching sale row's <code>transaction_id</code> and <code>transaction_completion_date</code>. Please confirm whether the field records the first completion and whether a later refund can change it. Please also confirm if a supported API can return the same completion time before the daily report is available.</p>
+</blockquote>
+<h2 id="test-payment-admin">테스트 결제의 PICNIC 계정 권한 · 2026-11-25</h2>
+<p>포트원 <code>TEST</code>와 페이팔 <code>SANDBOX</code>에서 테스트 결제를 시작하거나 승인하려면 PICNIC 계정에 <code>is_admin</code> 또는 <code>is_super_admin</code> 권한이 있어야 한다. 주문 소유권과 결제 중단 설정은 별도로 확인한다. <code>INTERNAL</code> 또는 <code>LIMITED</code> 모드에서는 관리자도 허용 사용자 목록에 있어야 한다.</p>
+<p>변경 전 구매 버튼은 프로필 권한을 확인했지만 DB 후보 <code>bcf4f7c9</code>의 주문 함수에는 이 검사가 없었다. 격리 PostgreSQL 15.8에서 기존 주문 계약 시험을 실행했다. 두 관리자 플래그가 기본값인 일반 계정으로 페이팔 SANDBOX와 포트원 TEST 견적이 생성됐다. 웹 후보 <code>4a9bce90</code>의 주문 API·페이팔 주문 경로·포트원 노출 및 브라우저 응답 시험 122개도 통과했다. 이 결과는 변경 전 기준이다.</p>
+<p>로컬 DB 후보는 새 테스트 주문과 새 공급자 컨텍스트 생성, 페이팔 주문 진입, 포트원 승인·페이팔 청구의 권한 획득과 제출 직전에 현재 프로필을 확인한다. 웹은 페이팔 SANDBOX 주문 ID를 다시 제공하거나 청구를 시작할 때 소유자와 현재 관리자 권한을 검사한다. 서버 주문과 연결되지 않은 예전 포트원 컨펌 경로는 결제창 표시 설정과 관계없이 거절한다.</p>
+<p>격리 PostgreSQL 15.8에서 두 결제사의 허용 목록에 있는 일반 회원, 관리자, 최고관리자, 주문 또는 청구 권한 획득 뒤 역할을 회수한 계정을 검증했다. 역할 회수 후에도 소유자의 상태 조회와 이미 제출한 청구의 결과 확인이 가능했다. 각 결제사의 LIVE 주문은 일반 회원으로 확인했다. 시험에서 공급자에게 청구하지 않았다.</p>
+<p>웹 <code>2b970c8c</code>와 DB <code>d173d773</code>을 함께 고정해 PostgreSQL 15.8과 로컬 PostgREST에서 검증했다. 두 실행 모두 관리자 권한 마이그레이션을 포함한 21개 파일을 적용했다. 페이팔 정상 시나리오 4개와 장애 시나리오 8개가 통과했고, 후자는 프로세스 재시작 4건을 확인했다. 포트원과 페이팔 각각에서 일반 회원은 OPEN 모드에서도 거절됐고, 허용 목록에 없는 관리자는 LIMITED 모드에서 거절됐다. 이미 생성한 결제 컨텍스트는 역할 회수 후에도 같은 ID로 복구됐다. 웹 전체 시험은 7,285개 통과와 1개 건너뜀으로 끝났고 TypeScript 검사도 통과했다.</p>
+<p>독립 리뷰어가 코드와 실행 기록을 대조해 이 변경의 차단 지적 0건을 보고했다. 웹 API의 관리자 검사는 Vitest로 검증했다. PostgreSQL 통합 시험은 로컬 공급자 응답을 사용했다. 포트원 V2 수동 승인의 실제 결제와 기존 웹훅의 지급 경로는 이번 검증 범위 밖이다.</p>
+<h2 id="portone-kr-test">국내 포트원 결제 · 2026-11-25</h2>
+<p>2026-11-25 10:39 KST에 PICNIC 관리자 초대 주소로 로그인한 주식회사 아이콘캐스팅 콘솔에서 확인했다. 2025-07-04에 신청한 KG이니시스 신용카드 일반결제는 <strong>입점 심사중</strong>, 카카오페이 간편결제 일반결제는 <strong>PG사 접수 완료</strong>로 표시됐다. 두 신청 모두 진행 중이다. <a href="https://admin.portone.io/application/list">전자결제 신청 내역</a></p>
+<p>2026-11-25 10:49 KST에 대표상점에서 <strong>PICNIC KG이니시스 V2 일반결제 테스트</strong>와 <strong>PICNIC 카카오페이 V2 일반결제 테스트</strong>의 등록을 확인했다. 각 채널에 포트원 콘솔이 제공하는 일반결제용 공용 테스트 상점을 선택하고 수동 승인을 ‘사용’으로 저장했다. 콘솔을 새로고침한 뒤 각 채널의 설정을 다시 열어 테스트 환경, V2 지원 모듈, 결제 용도와 수동 승인 ‘사용’을 확인했다. 기존 토스페이먼츠 채널을 포함해 테스트 채널은 3개이고 실연동 채널은 0개다. 이번 작업에서 결제나 환불 요청은 보내지 않았다. <a href="https://admin.portone.io/integration/manage">채널 관리</a></p>
+<p>포트원 V2는 채널별로 수동 승인을 켠다. 이 채널의 결제창 응답에는 <code>paymentToken</code>이 들어오며, 서버가 이 값을 사용해 승인을 요청한다. 기존 <code>confirmUrl</code>은 별도의 컨펌 프로세스에 쓰인다. <a href="https://developers.portone.io/opi/ko/extra/manual-confirm/readme-v2?v=v2">포트원 수동 승인 안내</a></p>
+<p>기존 브라우저 어댑터에서 실패 코드가 생략된 정상 응답을 <code>PAYMENT_FAILED</code>로 처리하는 문제를 모의 SDK로 재현했다. 수정본은 요청과 같은 결제 ID에 오류 코드가 없으면 결제창 응답을 인식한다. 다른 결제 ID는 거부한다. 수동 승인 토큰을 받으면 서버 승인 대기로 반환한다. 토큰은 호출자에게 반환하지 않는다. 실제 청구와 별사탕 지급 여부는 서버가 확인한다. <a href="https://developers.portone.io/opi/ko/integration/start/v2/checkout">포트원 결제창 응답과 서버 검증</a></p>
+<ul>
+<li>웹 후보 <code>e8556730</code>에 이 수정을 적용했다. 브라우저 응답 회귀 시험 5개 중 기존 코드에서 3개가 실패했다. 수정 후 서명된 웹훅, 주문, 국내 결제 비활성 상태를 포함한 집중 시험 192개가 통과했다. 포트원 SDK의 네트워크 경계에는 시험 응답을 사용했다.</li>
+<li>DB 후보 <code>bcf4f7c9</code>의 격리 PostgreSQL 15.8에서 지급·회수 시험과 기존·신규 워커 호환성 시험이 통과했다. 호환성 시험은 같은 포트원 주문의 지급 기록이 한 건인지 검사한다. 별도 시험에서는 현재 워커에 포트원 응답을 주입했다. 완료와 응답 유실은 검증 완료, 미완료는 재시도, 범위 불일치는 검토로 각각 한 건씩 기록됐다. 세 실행 모두 전용 컨테이너 제거를 확인했다. 현재 워커 실행 기록의 SHA-256은 <code>5477516456ebdc50c14d5c8a5154ce197babd69240cda1662143d0c9415d36eb</code>이다.</li>
+<li>별도 Deno 검증기 시험 13개가 통과했다. 과거 8단계 계약용 통합 실행기는 현재 워커의 v2 claim RPC를 거부했다. 이 실행의 DB 컨테이너도 제거됐으며 위 통과 건수에서 제외했다.</li>
+</ul>
+<p>전체 웹 회귀 시험은 7,279개 통과, 로컬 Next.js 빌드 결과에 의존하는 시험 1개 건너뜀이다. 첫 실행에서 임시 디렉터리의 자식 프로세스가 네트워크 차단 모듈의 상대 경로를 찾지 못해 진단 시험 5개가 실패했다. 같은 모듈의 절대 경로로 재실행했다. TypeScript 검사와 변경 코드 린트도 통과했다. 독립 리뷰는 브라우저 응답 처리에서 차단 결함을 발견하지 못했다. 수동 승인 토큰이 명시적으로 <code>null</code>인 응답도 현재는 승인 대기로 처리한다.</p>
+<h3>로컬 PC 관리자 결제창</h3>
+<p>로컬 웹은 서버가 발급한 주문과 KRW 견적을 사용한다. 결제창을 열 때마다 PostgreSQL의 <code>authorize_web_payment_provider_entry</code>가 주문 소유자, 현재 관리자 권한, 견적 기한, 설정과 채널을 다시 확인한다. 서버는 공급자 조회에서 TEST 채널과 거래 ID·금액·통화·주문 참조가 일치해야 수동 승인을 요청한다. 승인 응답이 끊기면 같은 거래를 조회한다. 관리자 화면은 주문 DB의 지급 상태가 <code>GRANTED</code>일 때만 지급 완료를 표시한다.</p>
+<p>로컬 Supabase URL과 테스트 전용 API 자격이 필요하다. 서버에서 <code>PORTONE_TEST_CHECKOUT_ENABLED</code>, 웹에서 <code>NEXT_PUBLIC_PORTONE_TEST_CHECKOUT_ENABLED</code>를 <code>true</code>로 켠다. <code>NEXT_PUBLIC_WEB_PORTONE_POLICY_VERSION</code>에는 해당 설정의 동의 버전을 지정한다. 서버 전용 <code>PORTONE_TEST_CHANNEL_CONFIG</code>에 고정한 상점·채널·자격 참조·버전·결제수단을 지정하고 <code>PORTONE_TEST_API_SECRET</code>을 별도로 제공한다. 한 번에 한 채널을 사용한다. 채널을 바꾸기 전에 새 주문을 중지한다. 미확정 주문, 웹훅 재시도, 미처리 지급 또는 시험 환불이 남아 있으면 기존 채널 설정과 자격을 유지한다. 모두 처리한 뒤 새 설정 버전과 새 주문으로 다음 채널을 시험한다.</p>
+<p>KG이니시스 PC 카드 결제에는 테스트 구매자의 이름·이메일·전화번호를 입력한다. 화면은 이 값을 SDK에 전달하고 탭 저장소에 기록하지 않는다. <a href="https://developers.portone.io/opi/ko/integration/pg/v2/inicis-v2">KG이니시스 구매자 정보</a></p>
+<p>PC 브라우저는 수동 승인 토큰을 메모리에서 같은 출처의 주문 API로 전달한다. 서명된 결제 완료 웹훅은 같은 결제 ID를 독립 조회한 뒤 기존 주문의 접수 결과를 확인한다. DB에 승인 제출 기록이 없는 주문은 공급자가 PAID로 응답해도 접수를 보류한다. 로컬 PostgreSQL 15.8과 모의 공급자로 승인 응답 유실 및 재전달을 확인했다. 실제 테스트 상점에서 승인 전 채널 정보 제공, 결제·서명 웹훅·지급·전액 환불과 회수를 대조하는 일은 남았다. 모바일 리디렉션은 이 PC 시험 범위 밖이다. <a href="https://developers.portone.io/opi/ko/extra/manual-confirm/readme-v2?v=v2">포트원 V2 수동 승인</a></p>
+<h2>로컬 웹 회귀 검증</h2>
+<p>2026-11-25 웹 <code>c5657a43</code>과 DB <code>2d629f38</code>을 PostgreSQL 15.8에서 시험했다. 포트원 시험은 모의 공급자와 실제 로컬 DB 함수를 사용했다. 웹은 승인 제출 기록이 없는 <code>PAID</code>를 거부했다. 1,700원 주문에서 승인 응답 유실과 지급 후 웹훅 재전달을 거쳐 승인 요청 1회, 구매 접수 1건, 지급 1건을 확인했다. 같은 전액 환불 이벤트를 두 번 처리한 뒤 별사탕과 보너스 잔액은 모두 원래 값인 0이었다. 환불 이상 징후 평가기는 <code>TEST</code> 환경 제약으로 해당 평가를 건너뛰었다.</p>
+<p>같은 두 커밋에서 마이그레이션 22개를 적용한 H1 HTTP 회귀 시험의 정상 시나리오 4개와 장애 시나리오 8개가 통과했다. 장애 시험은 프로세스 재시작 4건을 확인했다. 전체 웹 시험은 7,363개 통과, 1개 건너뜀이었고 TypeScript 검사도 통과했다. 실제 포트원 채널의 승인 전 조회 응답과 서명 웹훅 도착 여부는 채널별 PC 시험에서 확인한다.</p>
+<h3 id="portone-kg-test-full-refund">2026-11-25 KG이니시스 TEST 전액 취소 리허설</h3>
+<p>격리한 PostgreSQL 15.8에서 기존 마이그레이션 280개에 환불 마이그레이션 <code>20261125072400</code>을 적용했다. 상점 응답과 웹훅 서명키는 시험용이었다. 웹훅 검증, 로컬 PostgREST, 지급·환불 함수와 지갑 원장은 실제 코드를 실행했다.</p>
+<table><thead><tr><th>취소 시점</th><th>1,700원 주문의 지갑 원장 결과</th></tr></thead><tbody>
+<tr><td>지급 후</td><td>일반 별사탕 100개와 보너스 7개를 지급했다. 전액 취소로 같은 지급 건에서 107개를 회수했다. 잔액과 새 채무는 모두 0이었다.</td></tr>
+<tr><td>결제 검증 후, 지급 전</td><td>전액 취소를 먼저 기록했다. 이후 지급을 시도했을 때 DB가 차단했다. 지급 건수는 0이었다.</td></tr>
+<tr><td>구매 접수 전</td><td>전액 취소를 먼저 기록했다. 뒤늦게 결제 완료 알림을 처리한 후에도 지급 건수는 0이었다.</td></tr>
+</tbody></table>
+<p>각 주문에서 같은 서명 알림을 두 번 전달했다. 지급 후 취소한 주문의 환불 건수는 1이었다. 지급, 취소 접수, 환불의 커밋 응답을 각각 유실시켜 복구를 확인했다. 별도 DB 연결로 최종 원장을 대조했다.</p>
+<p>재현에 사용한 환불 SQL의 SHA-256은 <code>a4e0384da11cd89c0b59afce266e885d814bf0dde70671f748201a5f54c1f0ee</code>이다. 이 SQL을 포함한 H1 매니페스트의 SHA-256은 <code>62547538a8476d3f7687f661c79ba08b2b167af55bea8e00586ce071aa2ae395</code>이다. PG15.8 정상·장애 시험은 모두 통과했다.</p>
+<p>다음 단계는 독립 코드 검토와 관리자 PC의 TEST 카드 시험이다. 검토가 끝나면 로컬 관리자 DB와 작업자를 연결하고, KG이니시스에서 1,700원 한 건을 승인한 뒤 같은 거래를 전액 취소한다. 카드 소유자가 결제창에서 직접 인증한다.</p>
+<h3 id="portone-kg-live-card-full-refund">2026-11-25 KG이니시스 TEST 실카드 승인과 전액 취소</h3>
+<p>관리자 PC의 로컬 웹과 PostgreSQL 15.8에서 KG이니시스 TEST 채널의 1,700원 카드 결제 한 건을 승인하고 같은 거래를 전액 취소했다. 카드 소유자가 결제창에서 직접 인증했다. 승인 시 실제 카드 승인이 발생했다. 별사탕 지급과 회수는 로컬 DB에서만 일어났고 운영 DB는 사용하지 않았다.</p>
+<table><thead><tr><th>단계</th><th>확인 결과</th></tr></thead><tbody>
+<tr><td>승인</td><td>서버 수동 승인 후 포트원 조회가 <code>PAID</code>, 카드 결제수단, 1,700원을 반환했다. 승인 시각은 21:35:20 KST다.</td></tr>
+<tr><td>지급</td><td>정산 작업자가 <code>GRANTED</code>를 기록했다. 지급 스냅샷은 일반 별사탕 100개와 보너스 7개였다.</td></tr>
+<tr><td>취소</td><td>포트원 API의 전액 취소가 <code>SUCCEEDED</code>를 반환했다. 취소 시각은 21:36:32 KST다. 이후 조회는 <code>CANCELLED</code>와 취소 금액 1,700원을 반환했다.</td></tr>
+<tr><td>회수</td><td>정산 작업자가 <code>REFUNDED</code>를 기록했다. 관리자 지갑의 별사탕과 보너스는 0이다. 환불 이벤트는 1건, 회수 채무는 0건이다.</td></tr>
+</tbody></table>
+<p>시험 전에 Claude Fable 5.2(high)가 읽기 전용 독립 리뷰를 했다. 이중 청구, 이중 회수, 다른 사용자 지급 경로는 발견하지 않았다. High 1건은 환불 처리에도 열린 결제 설정과 현재 관리자 권한이 필요하다는 지적이다. 이 시험에서는 절차로 막았다. 주문 생성부터 <code>REFUNDED</code> 기록까지 설정·관리자 권한·웹 환경변수를 바꾸지 않았다. 설정은 그 뒤에 닫았다. Medium 2건 중 하나는 취소 내역이 여러 건인 응답에서 회수가 멈추는 문제다. 다른 하나는 영구 오류와 일시 오류를 구분하지 못하는 문제다. High 1건과 Medium 2건의 코드 수정은 LIVE 전에 별도로 한다.</p>
+<p>실결제 시험에서 웹 후보의 결함 하나를 찾았다. 승인 전 <code>READY</code> 응답에는 결제수단 필드가 없다. 공식 SDK에서도 이 필드는 선택 항목이다. 그런데 웹은 이 필드를 요구해서 승인 요청 전에 HTTP 409로 차단했다. 이때 청구는 없었다. 수정 후에는 <code>READY</code>에서 결제수단이 없거나 카드일 때만 승인 요청을 보낸다. 지급 근거인 <code>PAID</code>는 계속 카드 결제수단을 요구한다. 실제 응답 형태의 회귀 시험은 수정 전 실패하고 수정 후 통과했다. 포트원 집중 시험 149개와 TypeScript 검사가 통과했다. 전체 웹 시험은 7,412개 통과, 1개 실패다. 실패한 <code>verify-rendering-modes</code> 시험은 개발 서버의 <code>.next</code>를 검사하며 수정 전에도 실패했다. Codex gpt-6.1-sol(high) 독립 리뷰는 차단 지적 없이 통과했다. 리뷰어가 제안한 경계값 표 시험은 후속 작업으로 남긴다.</p>
+<p>운영 절차에서 확인한 사항은 다음과 같다.</p>
+<ul>
+<li>개발 서버가 처음 요청받은 경로를 컴파일하면 열린 페이지가 새로고침된다. 결제창이 열린 동안 새로고침되면 브라우저가 승인 토큰을 잃고 승인 요청을 보내지 못한다. 결제창을 열기 전에 주문·승인·상태·웹훅 경로를 미리 컴파일한다.</li>
+<li>조정자는 주문마다 정산 폴더에 <code>scope.json</code>을 먼저 고정한다. 이 파일이 없으면 결제창 진입이 HTTP 503으로 끝난다.</li>
+<li>개발 서버를 다른 공개 환경변수로 다시 시작하면 브라우저가 이전 번들을 캐시에서 쓸 수 있다. 관리자 테스트 버튼이 보이지 않으면 번들 캐시를 갱신한다.</li>
+<li>승인 전에 끝난 인증 두 건은 포트원에서 <code>READY</code>로 남았고 청구가 없었다.</li>
+<li>포트원은 취소 웹훅을 전송했고 로컬 웹은 HTTP 200으로 응답했다. 하지만 취소 신호 파일은 생기지 않았다. 회수는 결제 완료 신호를 처리하면서 포트원을 다시 조회한 경로로 이루어졌다. 원인은 아직 확인하지 않았다.</li>
+<li>환불 뒤에도 주문의 정산 상태는 <code>GRANTED</code>로 남는다. 주문 단위의 최종 상태는 아직 없다.</li>
+</ul>
+<p>배포 준비 점검에서 W <code>fed8bbdc</code>의 <code>npm run build</code>가 통과했다. 운영 자격 증명 없이 로컬 Supabase 응답과 캐시한 공개 폰트로 빌드했다. 같은 빌드를 구동해 기존 PayPal API 410 응답 두 건, 타 Origin 403, 동일 Origin의 미인증 401, 내부 대사 secret이 없을 때 503을 확인했다. 다섯 요청의 fixture 호출은 0건이었다. 처음 사용한 <code>127.0.0.1</code> Origin은 Next.js의 <code>localhost</code> 정규화로 거부됐다. <code>localhost</code> 요청으로 다시 확인했다.</p>
+<p>D <code>9c6a3256</code>과 원격 <code>main</code> <code>60e0be29</code>의 병합 트리에 충돌이 없었다. 해당 트리에서 외부 네트워크를 차단한 Deno 지갑 시험 735개가 통과했다. 별도 로컬 DB가 필요한 광고 시험 파일 하나는 이 실행의 범위 밖이었다. W 검증 SHA로 Vercel Preview를 조회한 결과는 0건이었다. 후보 브랜치 두 개와 PR은 원격에 없었다. 배포 준비 검증 기록 SHA256은 <code>4d407bb546ef3597568d50dce35ff96777e83450e52942e7afee4d834e5f3859</code>이다.</p>
+<p>구매 화면, 브라우저 결제 호출, 새 주문 API의 집중 시험 31개가 통과했다. 전체 웹 시험은 279개 파일에서 7,259개 통과, 1개 건너뜀이다. 제품과 집중 시험의 TypeScript 검사, 변경 경로의 린트, H1 검사기 시험 71개가 통과했다. 웹 시험은 합성 PayPal 응답과 세션으로 실행했다.</p>
+<p>2026-11-24 외부 네트워크를 차단하고 결제 API, 결제 라이브러리 및 PayPal 구매 화면의 회귀 시험을 다시 실행했다. 22개 파일의 시험 1,849개가 통과했다. 프로젝트 TypeScript 검사도 종료 코드 0을 반환했다. Vitest 결과의 SHA-256은 <code>24f892ca0a7980068958998c78de415f1fc4a2aef24b3688f884ed834c993053</code>다.</p>
+<p>독립 재검토에서 리뷰어는 상품 불일치·견적 만료·확정 거절의 수정과 보류 상태 표시를 확인했다. 새 High·Medium 지적은 없었다. 샌드박스 후속 검증에는 정상 취소 안내, 다른 상품에서 이전 지급 상태를 볼 때의 안내, 청구 시도 후 복구, 공급자 대사 응답이 지연될 때의 동작이 포함된다.</p>
+<p>약관 버전이 바뀐 뒤 구매 화면에서 이전 요청 ID와 입력으로 견적을 확인할 수 있다. 저장된 견적이 없는 경우 주문 서버의 HTTP 409 <code>WEB_PAYMENT_POLICY_CHANGED</code> 응답을 받으면 새 동의를 받을 수 있다. 인증 만료와 요청 검증 실패에는 저장된 시도를 보존한다. 이전 견적이 반환되면 인증된 상태 조회의 미제출·접수 없음·검토 불필요 상태와 같은 요청 ID에 청구 시도 기록이 없음을 확인한 뒤 저장된 견적을 정리한다. 결과가 불확실하거나 청구를 시도한 경우에도 기존 시도를 보존한다.</p>
+<p>최초 재현 시험 3개와 검토 후 추가한 오류 재현 시험 2개가 수정 후 통과했다. 외부 네트워크를 차단하고 루프백을 허용한 최종 웹 시험은 279개 파일에서 7,271개 통과와 1개 건너뜀이다. 네트워크를 차단한 결제 집중 시험 121개, TypeScript 검사, 변경 코드 린트와 격리 PostgreSQL 15.8 주문 계약 시험도 통과했다. 웹 시험 입력은 합성 PayPal 응답과 세션이다.</p>
+<p>새 읽기 전용 리뷰 세션에서 약관 복구의 기존 지적 4건이 해소됐음을 확인했다. 차단 지적은 없었다. 일반 견적 요청도 같은 HTTP 409 정책 거절을 받으면 저장된 시도를 정리한다. 약관 변경과 함께 구매 자격이 바뀌어 기존 주문을 조회하기 전에 403이 반복되면, 시도를 보존하므로 이 탭에서 새 구매를 시작할 수 없다.</p>
+<p>약관 변경 복구 시험에 세 가지 경우를 추가했다. 청구 상태가 불확실하면 되찾은 견적을 저장한다. 청구 시도 기록이 있으면 서버의 미제출 상태에도 해당 시도를 보존한다. 첫 견적 요청에서 정확한 HTTP 409 정책 거절을 받으면 저장한 요청과 동의를 초기화한다. 격리 시험에서 해당 처리를 하나씩 제거하자 각각 대응하는 시험이 실패했다. 결제 집중 시험 124개와 TypeScript 및 린트 검사가 통과했다. 전체 웹 시험은 279개 파일에서 7,274개 통과와 1개 건너뜀이다.</p>
+<p>독립 리뷰는 세 시험이 요구사항을 충족한다고 판정했다. 첫 견적 요청에서만 정책 거절 처리를 생략한 별도 실행에서는 해당 시험 1개가 실패했고 나머지 구매 화면 시험 22개는 통과했다. 공용 오류 분류에서 미확정 응답을 보존하는 동작은 기존 복구 시험이 다룬다.</p>
+<p>2026-11-24 격리 PostgreSQL 15.8에서 현재 10개 migration을 설치한 지급·회수 시험과 M1–M5까지 설치한 호환성 시험이 통과했다. 기존 PortOne 지급은 통과했고, PayPal 지급 요청은 <code>COMPLETION_EVIDENCE_REQUIRED</code>로 검토에 남았다. PayPal 상위 주문·청구 참조와 완료 시각을 검사하는 검증기 시험을 포함해 Deno 시험 13개가 통과했다. 모든 입력은 시험용이다.</p>
+<p>현재 후보의 PostgreSQL 15.8 단축 시험은 보류 중 접수 차단과 일반 재시도 예산을 별도 DB 연결로 확인했다. 같은 시험의 전체 실행은 중단됐다. 별도로 이전 격리 PostgreSQL 15.8의 전체 실행 원본에서 읽기 주기 만료, 실제 DB 시각을 기다린 보류 재시도 31회, 후속 요청 32·33번째의 일반 재시도 예산 1·2와 지연 2·4초를 확인했다. 이전 실행과 현재 후보에서 migration 15개를 포함한 시험 입력 파일 83개 및 생성 의존 SQL의 SHA-256이 일치한다. 이 대조는 해당 SQL 시험 범위다. 전체 migration 체인과 변경된 Edge 코드는 대조 범위 밖이다. 이전 실행 기록의 SHA-256은 <code>59f871a34a0e9c4f7fdbaa49df993586aeff1864130eeee4f75589ad70eb36df</code>다.</p>
+<p>현재 후보로 격리 PostgreSQL 15.8의 결과 기록 시험을 새로 실행했다. 교차 순서로 들어온 제출·완료 요청, 같은 청구 ID를 연결하려는 경쟁 요청, 대사 큐 잠금 대기 및 실제 기한이 지난 제출의 처리를 별도 연결에서 확인했다. 시험은 종료 코드 0을 반환했다. 소스 해시가 유지됐고 전용 컨테이너가 제거됐다. 실행 기록의 SHA-256은 <code>b8ac0de41e915bb108463791bcdacf5a4f1f07f4badf0e6ecd73d5105daab86a</code>다.</p>
+<p>같은 PostgreSQL 15.8 후보에서 미제출 보류 해제 시험을 별도로 실행했다. 기록의 원자성, 잠금 뒤 보류 재평가, 실제 제출 유예 기간 및 해제 뒤 접수 재자격을 확인했다. 시험은 종료 코드 0을 반환했다. 쓰기 권한 시험에 사용한 설정을 복구했고 전용 컨테이너가 제거됐다. 실행 기록의 SHA-256은 <code>48060b39def4563280543523bbd1ff2c2d91cf5f3fe3e895fb7eee1a66a69dad</code>다. 시험은 격리 DB의 합성 데이터에 한정한다.</p>
+<p>PayPal은 eCheck가 아직 처리되지 않았거나 판매자가 수동 수락을 설정한 경우 등에서 청구가 보류될 수 있다고 문서화한다. 실제 보류 거래가 완료로 바뀌면 동일 청구 ID와 시각을 판매자 보고서 및 서명 검증된 이벤트에서 대조한다. <a href="https://developer.paypal.com/api/orders/v2/definitions/purchase_unit">PayPal 청구 상태와 보류 사유</a></p>
+<h2>계획을 지탱하는 코드와 이전 검증</h2>
+<ul>
+<li><a href="../superpowers/plans/2026-11-12-web-payment-implementation.html">웹 결제 원 계획</a></li>
+<li><a href="2026-11-17-web-payment-u3-c-validation.html">영속 보류·대사 엔진 검증 보고서</a></li>
+<li><a href="2026-11-23-web-payment-og2-pg15-readiness.html">PostgreSQL 15.8 운영 준비 보고서</a></li>
+</ul>
+</main></body>
+</html>

@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="ko"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>U3 C 내구성 구현 계획</title><style>
+:root{color-scheme:light;--ink:#172535;--muted:#516477;--line:#d9e1e9;--accent:#12606a}*{box-sizing:border-box}body{margin:0;background:#f4f7fa;color:var(--ink);font:16px/1.75 system-ui,-apple-system,"Apple SD Gothic Neo",sans-serif}main{max-width:1120px;margin:32px auto;padding:36px 44px;background:white;border:1px solid var(--line);border-radius:14px}h1{font-size:30px;line-height:1.35}h2{margin-top:42px;border-top:2px solid var(--line);padding-top:20px;font-size:23px}h3{font-size:19px;margin-top:28px}a{color:var(--accent)}p,li{overflow-wrap:anywhere}code{font:13px/1.6 ui-monospace,SFMono-Regular,monospace;background:#eef3f6;padding:2px 4px;border-radius:3px;overflow-wrap:anywhere}pre{padding:16px;background:#132331;color:#e1eef4;overflow:auto;border-radius:7px;font:13px/1.65 ui-monospace,SFMono-Regular,monospace;white-space:pre-wrap;overflow-wrap:anywhere}pre code{background:transparent;color:inherit;padding:0}table{border-collapse:collapse;width:100%;font-size:14px;margin:18px 0}th,td{border:1px solid var(--line);padding:10px 12px;text-align:left;vertical-align:top;overflow-wrap:anywhere}th{background:#eef4f7}th:first-child,td:first-child{min-width:105px}blockquote,.notice{border-left:4px solid var(--accent);background:#edf7f7;padding:14px 18px;margin:18px 0}.muted{color:var(--muted)}.steps{list-style:none;padding-left:0}.steps>li{margin:18px 0;padding-left:26px;position:relative}.steps>li:before{content:'☐';position:absolute;left:0}.files{font-size:14px}details{margin:16px 0;padding:12px;border:1px solid var(--line)}summary{cursor:pointer;font-weight:650}@media(max-width:760px){main{margin:0;border:0;border-radius:0;padding:20px 16px}body{font-size:15px}table{font-size:12px}th,td{padding:7px}h1{font-size:25px}}@media print{body{background:white}main{margin:0;border:0;max-width:none;padding:0}pre{background:#eee;color:black}h2{break-before:auto}tr,pre{break-inside:avoid}}
+</style></head><body><main>
+<h1>U3 C 내구성 구현 계획</h1>
+<p class="muted">2026-11-17 · 작성자 Codex · 구체 설계 승인 뒤 작성 · 계획 정적 재검증 완료 · 사용자 구현 승인 대기</p>
+<blockquote><strong>작업자 실행 지침:</strong> 기존 Orca 순차 실행 방식을 유지한다. 각 구현자는 <code>superpowers:executing-plans</code>를 읽고 담당 단위만 수행한다. 네이티브 하위 에이전트는 사용하지 않는다. 아래 체크박스는 실행 때 갱신한다. 조정자가 시험을 실행하고, 고위험 변경은 반대 공급자의 Frontier 리뷰와 원 리뷰어의 1회 재검증을 거친다.</blockquote>
+<p><strong>Goal:</strong> PayPal POST 분류·보호 GET·접수·하류 지급·대사 작업이 같은 durable hold를 소비하게 하고, 응답 유실과 실제 프로세스 재시작에서도 부재를 자동 승인하지 않게 한다.</p>
+<p><strong>Architecture:</strong> D(picnic-supabase)가 불변 증거와 hold, 원자 RPC, queue와 SQL 작업을 소유한다. W(picnic-web)가 provider 평가·POST 분류·read cycle·유한 GET executor를 소유한다. D Edge는 v2 검증 claim과 INTAKE_HELD 응답을 소비하며 W의 Node 모듈을 import하지 않는다.</p>
+<p><strong>Tech Stack:</strong> 기존 TypeScript·Next.js·Vitest·supabase-js, Deno, PostgreSQL 15.8/17.6, PostgREST 14.8, Python 표준 라이브러리·로컬 Docker. package·lock·생성 types와 기존 native migration은 동결한다.</p>
+<p><strong>Spec:</strong> <a href="../specs/2026-11-17-web-payment-u3-durable-review-design.html">2026-11-17-web-payment-u3-durable-review-design.html</a>, commit <code>6e43e0d17a280f4b74f3f2d3dc830d68e520745e</code>, SHA256 <code>bd6309f858ee350afd2a996d22734fc7f005f741a276c9c9f29d4da845710723</code>. G0–G8, G9 v3.1, editorial N2-L1이 기반 10부의 지정 조항보다 우선한다. 사용자의 “진행”을 구체 설계 승인과 구현 계획 작성 지시로 기록한다. 이 계획의 구현 승인은 별도다.</p>
+<div class="notice"><strong>현재 상태:</strong> 계획 작성만 수행했다. 문서의 시험·명령·DDL·route는 앞으로 수행할 작업이다. runtime PASS, 운영 행 부재, PayPal 의미 확인 또는 U3 전체 종결을 주장하지 않는다. 문서 승인 전에는 제품 코드와 migration을 만들지 않는다.</div>
+<nav><a href="#constraints">공통 제약</a> · <a href="#focus">Review Focus</a> · <a href="#files">파일과 의존성</a> · <a href="#verification">실행·증거 명령</a> · <a href="#d1">D1–D6</a> · <a href="#w1">W1–W3</a> · <a href="#h1">H1</a> · <a href="#coverage">대조·완료 관문</a></nav>
+
+<h2 id="constraints">Global Constraints</h2>
+<ul>
+<li>C: 분류 DB commit 전 장애는 정상 결제도 보류한다. intent commit 불명은 POST 권한이 아니다. capture POST 누계 1, 고정 멱등 key, 견적 15분을 유지한다.</li>
+<li>추가 capture POST·새 provider 주문·지급 권한은 만들지 않는다. PayPal COMPLETE, M1/account_id, credential resolver 개방, legacy 폐쇄, U4 UI, U5 PortOne, full T6는 범위 밖이다.</li>
+<li>S0 CREATE와 S1 pre-intent GET는 barrier 밖이다. S1 assertion 저장 성공은 sticky지만 저장 실패·crash 뒤 나중 CLEAN→claim→POST→intake는 가능하다(R-PRE). R-CREATE/R-HTTP/R-WRITE 비용을 시험 결과에서도 보존한다.</li>
+<li>grace 90초, cycle 45초. OPEN·expired OPEN은 pending, ABANDONED는 absence, 실제 adverse·assertion·conflict는 sticky다. pending/absence만으로 새 terminal REVIEW를 만들지 않는다.</li>
+<li>모든 receive는 wallet→order 잠금 아래 같은 admission을 쓴다. 기존 intake replay 우선은 유지하고 지급은 downstream이 다시 막는다. claim LOOKUP_ONLY와 entry ORDER_LINKED 우선순위는 유지한다.</li>
+<li>READ COMMITTED만 지원한다. 잠금 뒤 별도 문장에서 hold를 평가한다. 세 attestation의 isolation 검사는 inline으로 넣고 기존 owner·명시 EXECUTE·membership을 보존한다.</li>
+<li>W evidence 16-key/native allowlist 17-key를 구분한다. provider status·amount·merchant를 만들지 않는다. caller 판단은 SERVER_REPORTED assertion이다. RECORDED/RPC 성공은 CLEAN과 다르다.</li>
+<li>사실 ≤33(raw capture ≤32), caller assertion ≤8, DB code별 ≤1/최대7, 총 capacity ≤15. raw canonical octets ≤294912, 정규 request ≤16384, assertion detail ≤512. 개별 native evidence pg_column_size ≤8192는 그대로다.</li>
+<li>원 RPC 입력 hash·fact 순서·bind flag는 보존한다. E는 bind 전 snapshot으로 고정한다. O는 유효 단일 purchase_unit의 payments/captures 생략 또는 []이면 []; 형태 불명이면 null이다. CLEAN은 O non-null이며 CAPTURE fact ID 집합과 정확히 같아야 한다.</li>
+<li>partial VOIDED는 실제 ORDER fact 또는 정확 UNRECORDABLE_PROVIDER_FACT assertion으로 정상 commit한다. 유효 adverse evidence는 nominal CLEAN 조건보다 먼저 effective ADVERSE로 처리한다.</li>
+<li>전역 observation lock bigint를 dedupe·오름차순 선취득한 뒤 원 fact 순서로 기록한다. bind=true는 CAPTURE 최대1개다. event는 기존 T7 UPDATE만, enroll만 INSERT한다. T7 lock 뒤 wallet/order lock을 잡지 않는다.</li>
+<li>구 PayPal claim은 NOT_CLAIMABLE/행0. 새 claim_v2는 모든 WEB_PURCHASE_V2 provider와 T10을 처리한다. T10 prepare 강제는 PAYPAL만이다. 구 PortOne 응답은 그대로며 새 worker에 raw fallback은 없다.</li>
+<li>verification budget은 max(0,raw−hold RETRY 수), delay=min(300,2^clamp(budget,0,9)); hold delay=60초. queue backoff=min(21600,300×2^clamp(n,0,7)), 연속 횟수는 넓은 중간값에서 31로 포화한다. ownership counter는 재사용하지 않는다.</li>
+<li>executor t0는 STARTED ACK 뒤, 새 claim cutoff는 t0+20초, provider 읽기 cutoff는 t0+55초. open 전 남은20초, open 뒤 실제 시간 재검사. 시작한 write는 RPC별10초까지 await한다. route/호출 timeout 120초는 운영 검증 전 제안이다.</li>
+<li>absence release는 audited basis/version/현재 CLEAN cycle 단위다. runtime EXECUTE·permission 부여 0, actual ADVERSE 해제 0. OG1–OG6는 계속 닫혀 있다.</li>
+<li>모든 실행 연결은 disposable 환경에만 한다. 로그·DTO·outcome·오류·경보에 lease/cycle token·credential·PII를 넣지 않는다. HTTP와 DB의 원자성은 주장하지 않는다.</li>
+</ul>
+
+<h2 id="focus">Review Focus — 반드시 소유 단위에서 검증할 다섯 경계</h2>
+<ol>
+<li><strong>구 worker와 새 DB 혼재:</strong> hold 경쟁 9회와 migration 전 lease의 늦은 prepare에서도 새 terminal REVIEW가 생기지 않아야 한다. 소유 D3·D6, 시험 <code>old_consumer_fenced</code>/<code>mixed_worker_hold_budget</code>.</li>
+<li><strong>서로 다른 사용자·주문의 X/Y 역순 batch:</strong> P1/complete/late/단건 혼합에서도 global key 순서를 지키고 원 fact index를 보존해야 한다. 소유 D2, 시험 <code>opposite_key_order</code>.</li>
+<li><strong>commit 전/후 ACK 유실과 실제 재시작:</strong> 별도 observer가 commit을 확인하며 빈 메모리 B가 POST X/GET Y를 DB에서 대조해야 한다. 소유 H1, 시험 <code>p1_ack_loss</code>/<code>restart_xy</code>/<code>kill_before_complete</code>.</li>
+<li><strong>기존 intake의 prepare 전 OPEN와 hold RETRY31회:</strong> 지급은 비종결 차단이고 해제 후 정상 retry는 budget1/delay2초여야 한다. 소유 D3·D5, 시험 <code>existing_intake_open</code>/<code>hold31_then_retry</code>.</li>
+<li><strong>생략/[]/형태 오류와 추가 capture ID:</strong> E=∅/{X} 여섯 조합과 O={X,Y}/fact={X}를 독립 literal로 고정한다. 소유 D2·W2·H1, 시험 <code>observed_id_matrix</code>/<code>clean_extra_id_downgrade</code>.</li>
+</ol>
+
+<h2 id="files">파일 소유권과 의존성</h2>
+<p><code>W</code>=<code>/Users/charlie.hyun/orca/workspaces/picnic-web/웹결제</code>. <code>D</code>=<code>/Users/charlie.hyun/orca/workspaces/picnic-supabase/web-payment-contract</code>. W 계획 기준 HEAD는 <code>6d162b70a9934c94612de11dcb0117c162d69546</code>이며 승인 spec의 commit은 별도 위에 고정했다. D 기준 HEAD는 <code>471b278cb57835973c3b24748f74898d03cef968</code>다. native SQL은 D에만 만든다.</p>
+<p>설계의 migration 2개 제안은 아래 5개 검토 단위로 분리한다. 계약과 최종 rollout 단위는 같다. 각 중간 commit은 로컬 검증 전용이며 독립 배포하지 않는다. 실행 때 D에서 <code>supabase migration new &lt;basename&gt;</code>으로 생성하고 manifest에 CLI가 만든 정확 경로를 기록한다. 지금 timestamp를 만들거나 기존 migration을 수정하지 않는다.</p>
+<table><thead><tr><th>단위 / 선행</th><th>수정·생성 파일과 결과</th></tr></thead><tbody>
+<tr><td>D1 / 없음</td><td>M1=<code>supabase/migrations/*_web_payment_durability_ledger.sql</code>; T1–T10/T5L/T5C, hold/admission/private receive, fixture·ledger suite.</td></tr>
+<tr><td>D2 / D1</td><td>M2=<code>*_web_payment_submission_results.sql</code>; P1/P2/P3, key 선취득, result/conflict/late suite.</td></tr>
+<tr><td>D3 / D2</td><td>M3=<code>*_web_payment_intake_admission.sql</code>; receive/review/watermark/downstream/S8/T10 fencing, admission·compatibility suite.</td></tr>
+<tr><td>D4 / D3</td><td>M4=<code>*_web_payment_reconciliation_queue.sql</code>; S5–S7, enroll/sweep/refresh/health/purge와 cron kit, queue suite.</td></tr>
+<tr><td>D5 / D4</td><td>M5=<code>*_web_payment_absence_release.sql</code>; 닫힌 release와 감사, release suite.</td></tr>
+<tr><td>D6 / D5</td><td><code>supabase/functions/_shared/wallet/web-purchase-worker.ts</code>, <code>supabase/functions/wallet-provider-event/index.ts</code>; 새 worker·Edge 실제 경계 시험.</td></tr>
+<tr><td>W1 / D2·D4 ABI</td><td><code>lib/payment/paypal-charge/transport.ts</code>, <code>repository.ts</code>; 새 <code>durability-contract.ts</code>, <code>reconciliation-repository.ts</code>; wire/parser/queue client.</td></tr>
+<tr><td>W2 / W1·D3</td><td><code>orchestrator.ts</code>, <code>durability-contract.ts</code>, <code>utils/log-event-codes.ts</code>; 새 <code>submission-classification.ts</code>, <code>read-cycle.ts</code>; 원자 기록·보호 GET.</td></tr>
+<tr><td>W3 / W2·D4</td><td>새 <code>reconciliation-executor.ts</code>, <code>reconciliation-entry.ts</code>, <code>app/api/internal/payment/paypal-reconciliation/route.ts</code>; closed 조합·시간 예산·내부 인증.</td></tr>
+<tr><td>H1 / D1–D6·W1–W3</td><td>새 <code>scripts/payment/intake-hold-http/*</code>, <code>__tests__/integration/payment/intake-hold-postgrest.http.ts</code>; HTTP·observer·실제 process kill/restart 증거.</td></tr>
+</tbody></table>
+<p>D native 시험 파일은 <code>supabase/tests/web_payment_durability_{ledger,results,admission,queue,absence_release,compatibility}.test.sql</code> 6개다. 새 driver는 <code>scripts/wallet/web-payment-durability-fixture.test.py</code>, 지원 모듈은 <code>web_payment_durability_fixture.py</code>, driver 단위 시험은 <code>web-payment-durability-runner.test.py</code>, 공통 seed는 <code>fixtures/web-payment-durability-cases.sql</code>다. 기존 runner·fixture는 변경하지 않는다.</p>
+<p>W 신규 단위 시험은 <code>__tests__/lib/payment/paypal-charge-durability-contract.test.ts</code>, <code>paypal-charge-read-cycle.test.ts</code>, <code>paypal-charge-reconciliation-executor.test.ts</code>, <code>__tests__/api/payment/paypal-reconciliation-entry.test.ts</code>다. 기존 protocol·repository·web-payment-adapters 시험도 소유 단위가 수정한다. 같은 파일을 동시에 쓰지 않는다. 기본 실행·리뷰 동시성은 1이다.</p>
+<p><strong>동결:</strong> W protocol.ts, binding-source.ts, provider-entry.ts, legacy route, UI, PortOne, package/lock/types; D 기존97 migration; 기존 W HTTP harness 3개와 과거 evidence. 설정·순수 파서·분류·cycle·executor/entry 파일 분리는 구현 책임 분할이며 새 제품 계약이 아니다.</p>
+
+<h2 id="verification">조정자 실행과 증거 수집</h2>
+<p>아래 명령은 실행 단계의 조정자 전용이다. 계획 작성 단계에서는 수행하지 않는다. 작업자는 실패 시험과 코드를 작성하고 조정자가 RED/GREEN을 실행한다. RED가 setup·권한·네트워크 오류이면 의미 있는 실패로 세지 않는다. 명령의 exit code뿐 아니라 receipt의 child exit code와 완료 marker를 확인한다.</p>
+<h3>시작 기준선</h3>
+<p>추적 변경·index가 비었는지 확인하고 W83/D97/mirror97/설치 SDK4/package3의 source pin을 다시 수집한다. 기존 사용자 untracked 파일은 보존한다. D 작업 전 current10 native 10개 suite를 PG15.8/17.6에서 실행한다. W 제품 변경 전 기존 D1/D2 HTTP canonical 증거를 실행한다. 과거 pin을 갱신하여 C 통과로 꾸미지 않는다. 옛 D2의 고정 orchestrator pin은 C 코드 변경 후 불일치하므로 이후 검증은 H1이 담당한다.</p>
+<pre>cd "$D"
+for image in postgres:15.8 postgres:17.6; do
+  for suite in orders charge provider intake binding verification settlement gate providerbinding providerentry; do
+    python3 -I -B scripts/wallet/web-payment-settlement-fixture.test.py "$image" \
+      --contract-level current10 --suite "$suite" --run-label "c-baseline-${image##*:}-$suite"
+  done
+done</pre>
+<p>새 runner는 <code>manifest</code>/<code>run</code> subcommand를 갖는다. manifest는 기존10개 migration의 정확 경로·SHA와 현재 단계의 CLI 생성 M1…Mn, 실제 dependency closure·시험·D Edge 파일 hash를 기록한다. <code>--through ledger|results|admission|queue|release</code>는 반드시 연속 prefix다. SQL 실행 전/후 pin을 검사한다. manifest 자체 SHA도 명령에 전달한다.</p>
+<pre>cd "$D"
+python3 -I -B scripts/wallet/web-payment-durability-runner.test.py
+python3 -I -B scripts/wallet/web-payment-durability-fixture.test.py manifest \
+  --through results --output "$EVIDENCE/d-results-manifest.json"
+python3 -I -B scripts/wallet/web-payment-durability-fixture.test.py run postgres:15.8 \
+  --through results --suite results --manifest "$EVIDENCE/d-results-manifest.json" \
+  --manifest-sha256 "$MANIFEST_SHA" --run-label c-d2-pg15</pre>
+<p>모든 GREEN은 두 이미지에서 반복한다. <code>EVIDENCE</code>는 private 실행 증거 디렉터리, <code>MANIFEST_SHA</code>는 바로 생성한 manifest의 실제 SHA256이다. shell 변수에 JSON을 보간하지 않는다. runner는 현재 단계의 새 migration이 없는 RED 모드 <code>--through current10</code>도 지원하며 missing contract를 정확히 보고한다.</p>
+<p>새 fixture는 기존 <code>fixture_session</code>/<code>settlement_dependencies</code>를 import하고 source closure를 추가한다. 실제 관리자 type·whitelist·roles/permissions·assert/begin/finish helper와 owner/ACL을 설치한다. latest data-driven <code>admin_permissions_for_role</code>를 그대로 사용한다. 동작을 흉내 낸 admin stub이나 superuser 제품 호출로 권한 시험을 대신하지 않는다. 초기에 기존 app credit/debit/refund 양성 control을 실행한다.</p>
+<p>로컬 PG는 <code>--network none</code>, 포트·bind mount 없음, 정확 CID/run label/image ID 소유권과 종료 후 CID 부재를 기록한다. 두 연결 시험은 실제 transaction 대기와 observer 연결을 쓴다. private hold의 미래 <code>p_at</code>로 순수 시간 경계는 검사할 수 있지만 public grace90초/cycle45초 crash 증명은 실제 DB 시계를 기다린다. 대기는 transaction 밖에서 짧게 나누고 진행을 알린다.</p>
+<h3>W 단위 시험 공통 경계</h3>
+<p>기존 <code>.artifacts/payment-web-order-api-driver/vitest-isolated.config.mjs</code>와 <code>network-guard.cjs</code> hash를 root 실행 receipt에 고정한다. envDir=false, 실제 repository+fetch stub, 외부 network 차단, HOME/PATH/LANG/LC_ALL/TMPDIR/TZ만 상속하고 NODE_ENV=test/CI=1을 설정한다. 각 단위에 아래 argv의 test 경로를 적용하며 default/JSON reporter를 함께 저장한다.</p>
+<pre>npm test -- --config .artifacts/payment-web-order-api-driver/vitest-isolated.config.mjs \
+  __tests__/lib/payment/paypal-charge-durability-contract.test.ts \
+  --reporter=default --reporter=json --outputFile="$EVIDENCE/w1.json"</pre>
+<p>조정자는 위 argv를 허용 env로 실행하고 <code>NODE_OPTIONS=--require=&lt;고정된 network-guard.cjs 절대경로&gt;</code>를 넣는다. 기존 run-vitest.py는 child 실패에도 wrapper exit0일 수 있으므로 receipt.exitCode를 별도로 검사한다. 기준선 수치를 새 PASS 수로 예측하지 않는다.</p>
+
+<h2 id="d1">D1 — ledger·effective hold·native fixture</h2>
+<p><strong>산출물:</strong> D M1과 위 새 fixture/runner/seed, <code>web_payment_durability_ledger.test.sql</code>. T1–T10/T5L/T5C 전체 저장소, immutable guard, RLS/ACL/inventory를 만든다. T7–T9 표는 여기서 만들고 queue 명령은 D4에 둔다.</p>
+<p><strong>Interfaces:</strong> 기존 current10 observation·intake·watermark source를 소비한다. 생성 private 함수는 <code>assert_web_payment_read_committed() returns void</code>, <code>web_payment_observation_review_exists(uuid,uuid) returns boolean</code>, <code>web_payment_watermark_observations(uuid) returns jsonb</code>, <code>web_payment_intake_hold(uuid,timestamptz) returns jsonb</code>, <code>web_payment_intake_admission(uuid,uuid,timestamptz) returns jsonb</code>, <code>web_payment_receive_core(uuid,uuid) returns jsonb</code>, <code>web_payment_queue_refresh_one(uuid) returns void</code>다. 모두 wallet_private. core는 호출자가 wallet→order 잠금을 가진다는 계약이며 기존 intake replay를 먼저 처리한다. admission A0–A7의 삽입점은 spec 6부 2절 그대로 <strong>NOT_COMPLETED 검사 뒤, payload 계산 앞</strong>이다. 비COMPLETED 후보는 기존 NOT_COMPLETED를 유지한다. 기존 public receive는 D3까지 교체하지 않는다. queue_refresh_one은 기존 T7만 UPDATE한다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> <code>ledger_contract</code>는 표/열/enum/owner, insert-only, RLS와 모든 runtime 직접 표 권한0을 검사한다. <code>hold_states</code>는 NO_INTENT/PENDING/ABSENT/CLEAN/NO_RESPONSE와 OPEN/ABANDONED를 분리한다. assertion 저장 fixture는 PRE_INTENT도 sticky인지 검사한다.</li></ul>
+<pre>-- 기대값은 원 함수로 생성하지 않는 literal이다.
+assert h-&gt;&gt;'scope' = 'PAYPAL';
+assert h-&gt;&gt;'grant_blocked' = 'true';       -- PENDING 또는 미해제 ABSENT
+assert h-&gt;&gt;'admission_possible' = 'false';
+assert portone_h-&gt;&gt;'scope' = 'NOT_APPLICABLE';
+assert portone_h-&gt;&gt;'grant_blocked' = 'false';
+assert preintent_h-&gt;&gt;'review_projection' = 'true';</pre>
+<ul class="steps"><li><strong>RED 실행:</strong> runner 단위 시험은 잘못된 prefix/hash/network 설정을 거부해야 한다. current10로 ledger suite를 실행하면 <code>WEB_PAYMENT_DURABILITY_LEDGER_MISSING</code> assertion으로 실패해야 한다. Docker setup 실패는 RED가 아니다.</li><li><strong>최소 구현:</strong> CLI로 M1을 생성하고 spec 2부 exact schema와 3부 hold v2를 구현한다. T8/T9는 append-only writer와 purge 범위를 분리한다. normalized request는 fact hash/순서/bind metadata를 저장하고 fact 본문은 native 한 곳에 둔다. 모든 표를 정확 inventory classifier에 등록한다.</li><li><strong>GREEN:</strong> <code>--through ledger --suite ledger</code>를 두 PG에서 실행한다. virgin NO_INTENT 비차단, PortOne 불변, time boundary version 변화, source helper 재귀 없음, raw/direct writer 거부, mutable T7와 purge 대상 T8/T9 구분을 확인한다.</li><li><strong>리뷰·커밋:</strong> root 실행 증거와 명시 diff를 반대 공급자 Frontier에게 제공한다. 통과 뒤 D의 위 소유 경로와 CLI 생성 M1만 stage하여 <code>feat(payment): add durable hold ledgers</code>로 커밋한다.</li></ul>
+
+<h2 id="d2">D2 — 원자 POST 분류·read cycle·assertion</h2>
+<p><strong>파일:</strong> M2, <code>web_payment_durability_results.test.sql</code>, 공통 fixture/seed/runner의 이 단위 case. D1 함수를 소비한다.</p>
+<p><strong>Interfaces:</strong> public <code>record_web_payment_submission_result(uuid,uuid,uuid,uuid,bigint,jsonb) returns jsonb</code>(S1), <code>open_web_payment_read_cycle(uuid,uuid,text) returns jsonb</code>(S2), <code>complete_web_payment_read_cycle(uuid,uuid,jsonb) returns jsonb</code>(S3), <code>record_web_payment_preintent_assertions(uuid,uuid,jsonb) returns jsonb</code>(S4). 반환 exact key/enum은 spec 8부 S1–S4 그대로다. private <code>web_payment_classification_validate(jsonb,text) returns text</code>는 mode=SUBMISSION/READ, 유효하면 null/무효면 닫힌 validation code를 반환한다. <code>web_payment_lock_observation_batch(jsonb) returns void</code>는 native digest와 동일한 sorted bigint lock을 선취득한다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> sender fulltuple·늦은 정당 결과·P1 replay/conflict, 33개 중 마지막 native 오류 rollback, caller8/derived capacity, partial VOIDED, 실제 adverse를 넣은 위조 CLEAN, X/Y와 partial ID, OPEN/ABANDONED/late/conflict를 literal로 고정한다. DB derived7개는 독립 reachable fixture로 검사한다.</li></ul>
+<pre>assert stale_sender-&gt;&gt;'safe_reason_code' = 'SENDER_TUPLE_MISMATCH';
+assert same_raw-&gt;&gt;'replayed' = 'true';
+assert changed_raw-&gt;&gt;'outcome' = 'CONFLICT_RECORDED';
+assert result_xy-&gt;&gt;'effective_kind' = 'ADVERSE';
+assert received_rows = 0;
+assert late_result-&gt;&gt;'outcome' = 'LATE_RECORDED';
+assert original_outcome_kind = 'ABANDONED';</pre>
+<ul class="steps"><li><strong>RED:</strong> <code>--through ledger --suite results</code>는 <code>WEB_PAYMENT_SUBMISSION_RESULT_MISSING</code>에서 실패해야 한다. 권한 음성은 exact SQLSTATE와 행0을 observer로 확인한다.</li><li><strong>최소 구현:</strong> M2에 S1–S4를 구현한다. 사전 형식 검사→locked E 고정→global key 선취득→원 순서 native 기록→caller/DB assertion→유효 결과→private receive를 같은 transaction에 둔다. raw hash는 집합 정규화 전 입력 기준이다. 같은 hash는 기존 결과만 반환하고, 다른 hash는 T2/T5C를 정상 반환으로 commit한다. 이미 결과가 있는 과대 요청도 hash-only conflict를 남긴다. late INVALID/ADVERSE 원인은 T5L/T3에 남기고 bind/receive는 하지 않는다.</li><li><strong>분기 시험:</strong> <code>observed_id_matrix</code> 여섯 조합과 singleton/추가 ID, full/partial VOIDED, 302 RPC 파생을 검사한다. raw32 ORDER1+CAP32+caller8 양성, raw33/facts0 WORK_BOUND, 사실34/ID33/caller9/detail513/raw294913 음성을 분리한다. 사실 배열과 bind flag 재정렬은 replay가 아닌 conflict다.</li><li><strong>명시 증거 배치:</strong> <code>iso_results</code>(V-ISO의 S1–S4), <code>cycle_token_crossing</code>(T20), <code>no_data_keeps_source</code>(V-NO-DATA), <code>capture_link_replay</code>(V-LINK)를 이 results suite에 둔다. S1–S4는 RR/SERIALIZABLE에서 정확 P0001 WEB_PAYMENT_ISOLATION_UNSUPPORTED와 observer의 대상 상태 불변·신규 증거/접수 행 증가0이다. T20은 위조 token과 다른 cycle의 token 재사용이면 CYCLE_TOKEN_MISMATCH/행0이다. 같은 cycle·같은 payload의 정당 replay와 ABANDONED 뒤 late는 기존 replay/late 계약을 유지한다. V-LINK는 첫 POST COMPLETED의 bind1·effective_kind=CLEAN·intake/inbox/receipt 각1을 기대한다. 같은 ID exact replay는 link1·새 접수 행0이다. 다른 CAPTURE ID가 이미 link된 상태에서 CLEAN을 위조하면 native IDENTITY_ALREADY_BOUND와 effective_kind=ADVERSE·새 intake0·대체 link0을 모두 단언한다. V-NO-DATA는 g1 CLEAN 뒤 g2 NO_DATA일 때 latest_source=g1 및 private admission A7 admit=true를 검사한다. OPEN이면 HELD_PENDING_READ, ABANDONED이면 HELD_ABSENT다. g1에서 intake가 이미 생긴 경우 공개 receive는 replay=true/행 증가0이고, hold 차단은 private admission·D3 downstream으로 검증한다. 공개 replay를 HELD로 바꾸지 않는다.</li><li><strong>두 연결 시험:</strong> <code>opposite_key_order</code>에서 서로 다른 wallet/order의 X,Y와 Y,X, P1/complete/late/단건을 조합한다. advisory 대기와 완료를 관측하고 원 fact_results index를 비교한다. unique-link 경쟁과 T7 직접 INSERT의 미commit FK 대기에서도 event가 upsert하지 않음을 검사한다. 이 단계에는 enroll 함수가 없으므로 별도 연결이 D1의 T7에 직접 INSERT하여 그 저장 동작만 모사한다. 실제 enroll 함수와의 동일 경쟁은 D4의 <code>enroll_existing_row_update</code>가 검증한다. lock_timeout/deadlock 오류를 성공으로 취급하지 않는다.</li><li><strong>GREEN:</strong> <code>--through results --suite results</code>, ledger 회귀를 두 PG에서 실행한다. 원자성은 별도 observer 연결의 T1/T3/T5/observation/claim/intake 행으로 증명한다.</li><li><strong>리뷰·커밋:</strong> S1–S4 service_role EXECUTE, PUBLIC grantee0 부재, catalog/manifest actual classifier 일치를 확인하고 <code>feat(payment): record atomic submission and read results</code>로 소유 파일만 커밋한다.</li></ul>
+
+<h2 id="d3">D3 — 공통 admission·downstream 비종결 hold·consumer v2</h2>
+<p><strong>파일:</strong> M3, <code>web_payment_durability_admission.test.sql</code>, <code>web_payment_durability_compatibility.test.sql</code>, fixture/seed. D2와 기존 native receive/verification/settlement/charge/entry 계약을 소비한다.</p>
+<p><strong>Interfaces:</strong> 기존 public receive/charge getter/list/claim/prepare/attest/apply 서명은 유지한다. 신규 S8 <code>claim_web_payment_purchase_v2(p_inbox_id uuid,p_worker_id uuid,p_lease_seconds integer) returns jsonb</code>(1..300)는 spec G1/G9 exact v2 envelope와 mandatory budget을 반환하고 T10을 원자 기록한다. <code>web_payment_verification_watermark(uuid) returns jsonb</code>는 기존4 key+<code>intake_hold {state,version}</code>, VOLATILE이다. <code>web_payment_charge_review_exists(uuid,uuid) returns boolean</code>는 observation OR review_projection이다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> 직접 receive/internal/V2의 HELD·replay, 기존 intake→g2 OPEN 전후 prepare/apply, expired OPEN, absence worker RETRY, v1 PayPal claim0writes/구 lease 늦은 prepare 정확 오류를 고정한다. 실제 service_role→세 attestation owner 권한 양성과 RR/SERIALIZABLE P0001 음성을 분리한다.</li></ul>
+<pre>assert claim_v1_paypal-&gt;&gt;'outcome' = 'NOT_CLAIMABLE';
+assert claim_v2-&gt;&gt;'contract_version' = 'web-purchase-verification-claim.v2';
+assert claim_v2-&gt;&gt;'consumer_contract' = '2';
+assert t10_version = (claim_v2-&gt;&gt;'inbox_row_version')::bigint;
+assert pending_prepare-&gt;&gt;'decision' = 'RETRY';
+assert pending_prepare-&gt;&gt;'reason_code' = 'INTAKE_HOLD_PENDING';
+assert new_terminal_reviews = 0;
+assert old_portone_claim_keys = expected_old_portone_keys;</pre>
+<ul class="steps"><li><strong>RED:</strong> <code>--through results --suite admission</code>는 <code>WEB_PAYMENT_INTAKE_HOLD_NOT_ENFORCED</code>에서 실패해야 한다. 별도 compatibility case는 v2 함수 부재를 보여야 한다.</li><li><strong>최소 구현:</strong> 공개 receive wrapper는 isolation 검사와 wallet→order 잠금을 먼저 수행한 뒤 D1 core를 부른다. 이미 같은 잠금을 가진 P1/complete도 그 core를 부른다. G2 inline isolation을 세 attest에 넣는다. 나머지 guarded 함수는 helper를 첫 문장에 둔다. pending/absence list 제외·claim0writes·prepare RETRY·budget 제외·apply version+hold 검사를 구현한다. worker decision REVIEW의 provider 근거는 유지한다. 구 PayPal v1은 닫고 구 PortOne 응답은 변경하지 않는다. v2의 hold 검사·budget key·T10은 모든 WEB_PURCHASE_V2에 적용하되 prepare T10 강제는 PAYPAL만이다.</li><li><strong>예산·counter 시험:</strong> <code>hold31_then_retry</code>에서 실제 31개 hold RETRY commit을 만든 후 해소된 다음 claim raw32/budget1의 정상 RETRY delay2초를 검사한다. integer/bigint 한계 바로 전·한계에서 기존 trigger +1을 보존하고 list/claim이 0writes로 제외하는지 확인한다. terminal REVIEW를 지우거나 counter를 포화 재사용하지 않는다.</li><li><strong>명시 증거 배치:</strong> <code>iso_admission_downstream</code>(V-ISO의 receive·getter·S8·verification/settlement list/claim/prepare/attest/apply·SCOPE_ONLY prepare/attest), <code>receive_pending_read_snapshot</code>(V-ISO-FRESH), <code>preintent_blocks_charge</code>(V-PREINTENT)를 admission/compatibility suite에 둔다. RR/SERIALIZABLE은 정확 P0001 WEB_PAYMENT_ISOLATION_UNSUPPORTED, 별도 observer로 모든 관련 상태·증거·접수 행 증가0이다. 세 attestation의 READ COMMITTED·정당 MAC/lease 양성도 별도로 둔다. 두 연결 case는 g2 OPEN transaction의 wallet/order 잠금 보유 동안 receive가 실제 기다림을 관측하고 commit 뒤 INTAKE_HELD 및 내부 admission HELD_PENDING_READ를 확인한다. 공통 순서 때문에 wallet에서 먼저 대기할 수 있으며 order 잠금 대기만 강제하지 않는다. P3 COUNTRY만 저장한 virgin NO_INTENT는 getter review=true/claim BLOCKED REVIEW_REQUIRED/POST0이다. 다른 주문에서 정당 claim 뒤 P3→intent 호출도 REVIEW_REQUIRED로 거부한다. assertion 없는 별도 NO_INTENT 주문의 claim은 SUBMIT이다.</li><li><strong>혼재 시험:</strong> <code>old_consumer_fenced</code>는 migration 전 lease와 새 DB의 늦은 prepare/attest를 호출하여 <code>WEB_PAYMENT_VERIFICATION_CONSUMER_UNSUPPORTED</code>와 새 결과0을 확인한다. 9회 hold 경쟁에서 새 v2 budget0/terminal REVIEW0을 확인한다. 실제 구 binary 혼재는 D6에서 이어 검증한다.</li><li><strong>GREEN:</strong> 두 PG의 admission/compatibility/results. 기존 PortOne prepare/attest와 앱 지급/debit/refund 양성, WEB_PURCHASE_V2 grant_eligible=false, immutability/RLS, LOOKUP_ONLY/ORDER_LINKED와 DTO 보호를 검사한다. 현재 PayPal COMPLETE는 열지 않는다. 도달 불가 apply COMPLETE hold 분기는 future PayPal COMPLETE 계약 개방 시 의무 시험으로 남긴다.</li><li><strong>catalog 대조:</strong> M3가 본문을 교체한 기존 service RPC도 <code>wallet_relevant_service_rpc_identities()</code>의 actual evidence와 catalog/manifest를 재대조한다. source lockdown의 pg_depend:wallet_relation → functiondef:wallet_relation → functiondef:wallet_private 등의 우선순위를 따르고, evidence가 바뀐 소유 RPC만 그 실제 값으로 갱신한다. signature·owner·기존 EXECUTE는 유지하고 마지막 <code>assert_wallet_service_rpc_manifest()</code>를 실행한다. 기존 catalog 값이 그대로라고 가정하지 않는다.</li><li><strong>리뷰·커밋:</strong> <code>feat(payment): enforce shared intake and grant holds</code>. 구 claim/prepare를 실행 중인 DB transaction의 운영 drain/fence는 OG2 kit의 필수 선행조건이며 여기서 운영 실행하지 않는다.</li></ul>
+
+<h2 id="d4">D4 — queue·SQL 진행·health·bounded 경보</h2>
+<p><strong>파일:</strong> M4, <code>web_payment_durability_queue.test.sql</code>, fixture/runner, <code>supabase/prod-cutover/2026-11-17-web-payment-reconciliation-cron/kit.html</code>. kit만 작성하고 cron을 운영에 등록하지 않는다.</p>
+<p><strong>Interfaces:</strong> S5 <code>claim_web_payment_reconciliation_item(uuid,integer) returns jsonb</code>(lease30..180), S6 <code>finish_web_payment_reconciliation_item(uuid,uuid,text) returns jsonb</code>, S7 <code>record_web_payment_reconciliation_run(uuid,uuid,text,text,jsonb,text) returns jsonb</code>. private cron 함수 <code>enroll_web_payment_reconciliation_candidates(integer)</code>, <code>sweep_web_payment_read_cycles(integer)</code>, <code>refresh_web_payment_reconciliation_queue(integer)</code>는 int, <code>evaluate_web_payment_reconciliation_health()</code>는 void, <code>purge_web_payment_reconciliation_logs(integer)</code>는 int를 반환한다. p_limit 범위1..500. SQL 명령은 HTTP를 호출하지 않는다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> <code>queue_fairness</code>는 next_due/order 순 SKIP LOCKED, lease 재claim, stale finish0writes, process finish 누락 뒤 다른 항목 선처리를 검사한다. <code>health_not_masked</code>는 빈 성공 FINISHED와 미등록 후보·만료 OPEN을 함께 만든다.</li></ul>
+<pre>assert first_claim_order = oldest_unlocked_order;
+assert stale_finish-&gt;&gt;'outcome' = 'STALE_LEASE';
+assert next_due_seconds = 21600;          -- n이 매우 커도 overflow 없음
+assert consecutive_no_change = 31;       -- 넓은 중간값에서 포화
+assert enroll_gap_alert_open;
+assert sweep_lag_alert_open;
+assert counter_limit_claim_writes = 0;
+assert old_heartbeat_output = old_heartbeat_literal;</pre>
+<ul class="steps"><li><strong>RED:</strong> <code>--through admission --suite queue</code>는 <code>WEB_PAYMENT_RECONCILIATION_CLAIM_MISSING</code>에서 실패해야 한다.</li><li><strong>최소 구현:</strong> E/H/O 집합과 ACTIVE/HELD/DONE, claim1건과 선제 next_due backoff, 카운터 clamp/포화, finish exact result·lease 반환, STARTED/FINISHED와 T9.skipped를 구현한다. P1/complete/sweep/release event는 이미 있는 T7만 갱신한다. refresh는 T7만 잠그고 이벤트 누락을 복구한다.</li><li><strong>명시 증거 배치:</strong> <code>iso_queue_cron</code>(V-ISO의 S5–S7·enroll/sweep/refresh/evaluate 4개 cron), <code>alert_detail_allowlist</code>(V-ALERT-DETAIL), <code>enroll_existing_row_update</code>를 queue suite에 둔다. RR/SERIALIZABLE은 정확 isolation P0001과 observer 상태·증거·checkpoint·경보 증가0이다. alert detail은 허용 key·닫힌 basis enum·scalar 길이를 literal로 검사하며 provider ID/user_id/token/credential/금액/통화/scope/reason_text/cs_ticket/오류 원문과 Q7pPriv가 없어야 한다. 기존3 namespace 출력 literal도 비교한다.</li><li><strong>enroll_existing_row_update 기대:</strong> 실제 enroll과 P1/complete event를 두 actor 연결로 경쟁시킨다. 방향A는 enroll이 T7 INSERT와 order FK KEY SHARE를 미commit으로 보유한 동안 event 연결의 wallet→order 대기를 관측한다. enroll commit 뒤 event가 완료되고 T7은1행이며 기존 행만 갱신한다. 방향B는 event actor가 wallet→order 잠금을 먼저 가진 상태에서 enroll의 FK 대기를 관측한다. 그 상태에서 P1/complete event는 아직 보이지 않는 신규 T7을 upsert하지 않고 완료해야 한다. 이 완료는 enroll commit 전이어야 한다. event actor commit→enroll commit 뒤에도 T7은1행이며 refresh가 현재 hold로 상태를 맞춘다. ADVERSE fixture의 claim은 EMPTY, refresh 뒤 HELD다. 각 단계는 별도 observer로 실제 wait와 행을 읽고, lock_timeout/deadlock은 실패로 처리한다.</li><li><strong>health 구현:</strong> spec 7부의 10 fingerprint 계열에 HEALTH watchdog과 counter-limit를 반영한다. bootstrap checkpoint 없음도 stale이다. 실패/rollback한 job은 성공 checkpoint로 쓰지 않는다. enroll gap·sweep lag는 원천 행을 읽고 run 성공으로 가리지 않는다. bounded web-payment detail은 허용 scalar만 재구성한다. 기존 heartbeat3종과 경보3 namespace는 보존한다. evaluator까지 함께 멈춘 장애는 외부 감시 경계로 kit에 남긴다.</li><li><strong>GREEN:</strong> 두 PG queue suite와 ledger/admission 회귀. 기한 전 OPEN 불변·기한 뒤 ABANDONED, locked skip 공정성, HELD late P1 재진입, no-data backoff, counter-limit 후보 제외/health 경보, 30일 이전 T8/T9만 purge, evidence ledger 불변을 확인한다.</li><li><strong>리뷰·커밋:</strong> kit에는 제안5분·임계값·120초 제안·구 worker/DB drain/fence 증거·적용/검증/중지 절차와 OG2를 명시한다. 운영 적용 없이 <code>feat(payment): add reconciliation queue and health</code>로 커밋한다.</li></ul>
+
+<h2 id="d5">D5 — 닫힌 audited absence release</h2>
+<p><strong>파일:</strong> M5, <code>web_payment_durability_absence_release.test.sql</code>, 실제 관리자 closure가 필요한 fixture/seed. D1–D4와 source의 <code>begin_admin_command</code>/<code>assert_wallet_admin_actor</code>/<code>finish_admin_command</code>를 소비한다.</p>
+<p><strong>Interface:</strong> public <code>release_web_payment_absence_hold(p_actor_user_id uuid,p_request jsonb) returns public.wallet_stable_command_envelope</code>. spec 6부 exact9 key·실패 enum·basis/version/CLEAN freshness를 사용한다. 성공은 T6+audit+기존 T7 ACTIVE dueNOW이며 receive·intent reset·capture·grant는 하지 않는다. runtime EXECUTE와 role permission 부여는 0이다. catalog/manifest 실제 service 집합에도 넣지 않는다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> <code>release_reeligible</code>는 기존 intake ABSENT→worker 비종결→운영 확인 CLEAN→감사 release→list 재후보를 증명한다. 실제 adverse는 같은 해제로 풀리지 않는다. 잘못된 order/version/세대/90초 전 cycle·pending·권한을 각각 거부한다.</li></ul>
+<pre>assert missing_runtime_execute_sqlstate = '42501';
+assert adverse_release_code = 'ADVERSE_PRESENT';
+assert stale_version_code = 'VERSION_MISMATCH';
+assert release_result_payload-&gt;&gt;'released' = 'true';
+assert new_resolutions = 1 and new_audit_events = 1;
+assert queue_state = 'ACTIVE' and next_due_at &lt;= observer_now;
+assert hold_pending_retry_rows_are_nonterminal;
+assert list_contains_released_intake;
+assert existing_adverse_reviews_unchanged;</pre>
+<ul class="steps"><li><strong>명시 증거 배치:</strong> <code>iso_release</code>(V-ISO의 release)는 시험용 권한 양성 fixture를 만든 뒤 RR/SERIALIZABLE에서 정확 isolation P0001과 observer T6/audit/admin-command/T7 변화0을 확인한다. 이 권한 fixture 없이 42501을 받는 것을 isolation 음성으로 세지 않는다.</li><li><strong>RED:</strong> <code>--through queue --suite release</code>는 <code>WEB_PAYMENT_ABSENCE_RELEASE_MISSING</code>에서 실패해야 한다.</li><li><strong>최소 구현:</strong> M5에서 exact request validation·관리자 idempotency/conflict·wallet→order·hold·basis별 해제와 감사 기록을 구현한다. SUBMISSION_ABSENT 기준은 intent+90초 뒤 열린 현재 CLEAN이며 classification_id_at_open null, ABANDONED 기준은 더 큰 generation이다.</li><li><strong>권한 양성 시험:</strong> disposable marker·정확 CID 소유 검사가 끝난 fixture에서만 <code>public.admin_permissions.admin_permissions_wallet_key_check</code>의 원 <code>pg_get_constraintdef</code>와 <code>convalidated</code>를 저장한다. 그 CHECK의 허용 집합에 <code>wallet.web_payment.absence_release</code> 한 키만 추가한 시험용 정의를 설치·검증한 뒤 실제 admin_roles/permissions·role mapping과 정확한 역할 이름 <code>Finance Admin</code>의 actor를 seed한다. actor는 같은 UUID의 <code>user_profiles</code>(deleted_at null), <code>auth.users</code>(deleted_at null), 해당 profile email과 대소문자 무관 일치하는 <code>admin_whitelist</code>(is_active=true), 그 actor와 역할을 연결하는 <code>admin_user_roles</code> 행을 모두 seed한다. helper가 반환하는 정규 actor_role은 <code>FINANCE_ADMIN</code>이며 역할 이름과 구분한다. 기존 data-driven <code>admin_permissions_for_role</code>와 assert/begin/finish 함수는 그대로 쓴다. fixture 전용 NOLOGIN 역할에만 release EXECUTE를 부여한다. 시험 후 EXECUTE revoke→시험 role-permission mapping·permission 행 삭제→원 CHECK 복원·validation 상태 대조 순으로 원복한다. 원 definition·validated 값과 PUBLIC grantee0·runtime별 effective EXECUTE0을 검사한다. <strong>M5는 permission CHECK·permission 행·역할 매핑을 바꾸지 않는다.</strong> source의 wallet_audit_events.action(20260721100500:33–49), wallet_admin_command_executions.action_code(20260721105500:43–51)는 enum CHECK가 없는 text다. 이 두 열의 제약은 확장하지 않는다. admin stub이나 owner·membership 변경으로 양성을 만들지 않는다.</li><li><strong>GREEN:</strong> 두 PG release/admission/queue 회귀. release 후 사용자 호출0 상태에서 자동 due, fresh cycle을 통한 접수, 새 adverse/absence 재차단, exact request replay 새 행0, actual ADVERSE와 기존 terminal REVIEW 불변을 확인한다.</li><li><strong>리뷰·커밋:</strong> <code>feat(payment): add closed audited absence resolution</code>. OG1 역할·담당·기한과 OG5 ADVERSE 해결은 계속 미실행이다.</li></ul>
+
+<h2 id="d6">D6 — 실제 Edge 소비자와 v2 혼재 시험</h2>
+<p><strong>파일:</strong> D의 <code>supabase/functions/_shared/wallet/web-purchase-worker.ts</code>, <code>supabase/functions/wallet-provider-event/index.ts</code>. 새 <code>scripts/wallet/web-payment-durability-worker-integration.test.py</code>, <code>fixtures/web-payment-durability-worker-integration.ts</code>, <code>fixtures/web-payment-durability-edge.test.ts</code>. 기존 worker integration runner/fixture는 기준선 원본으로 동결한다. 구 binary 시험은 D 기준 HEAD <code>471b278cb57835973c3b24748f74898d03cef968</code>의 <code>supabase/functions/_shared/wallet/web-purchase-worker.ts</code>와 그 runtime import인 <code>web-purchase-provider-verifier.ts</code>를 <code>git show 471b278cb57835973c3b24748f74898d03cef968:path</code> 조회로 owned temp snapshot에 추출한다. 현재 수정된 worker를 구 binary라고 부르지 않는다. 두 원본 blob/path/SHA와 실제 import closure를 manifest에 기록한다.</p>
+<p><strong>Interfaces:</strong> 기존 <code>processWebPurchase</code> 입력/결과는 유지하고 내부 claim만 S8로 바꾼다. v2 contract·consumer_contract=2·budget_attempt_count를 필수 검사한다. 실제 exported <code>handler(Request):Promise&lt;Response&gt;</code>에서 receive reason INTAKE_HELD를 <code>422 {error:'WEB_PAYMENT_INTAKE_HELD',retryable:false}</code>로 매핑한다. 나머지 응답과 service-role 인증은 유지한다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> 실제 worker를 Deno child로 실행하고 stdin/stdout RPC proxy가 disposable DB의 service_role 호출을 수행하게 한다. <code>mixed_worker_hold_budget</code>에서 구 source binary의 v1 PayPal claim/구 lease와 새 v2 worker의 9회 hold 경쟁을 분리한다. PortOne complete/retry/review/lost-response 네 기존 모드를 새 driver에 모두 이식한다.</li></ul>
+<pre>assert new_worker_rpc_names.count('claim_web_payment_purchase_v2') == 1
+assert 'claim_web_payment_purchase' not in new_worker_rpc_names
+assert claim_contract_missing_is_closed_failure
+assert old_paypal_claim_writes == 0
+assert late_old_prepare_sqlstate == 'P0001'
+assert late_old_prepare_message == 'WEB_PAYMENT_VERIFICATION_CONSUMER_UNSUPPORTED'
+assert hold_terminal_reviews == 0
+assert portone_expected_decisions == ['COMPLETE', 'RETRY', 'REVIEW', 'COMPLETE']
+assert edge_held_status == 422
+assert edge_held_json == {'error':'WEB_PAYMENT_INTAKE_HELD','retryable':False}</pre>
+<ul class="steps"><li><strong>RED:</strong> 새 driver <code>--case worker-v2</code>는 현재 worker가 old claim을 호출하므로 <code>EXPECTED_V2_CLAIM</code>으로 실패해야 한다. Edge 시험은 기존 503과 기대422 차이로 실패해야 한다.</li><li><strong>최소 구현:</strong> 두 제품 파일만 바꾼다. RPC proxy allowlist에 S8을 정확히 넣고 arbitrary SQL/환경 조회를 허용하지 않는다. 기존 Deno source graph의 esm.sh supabase-js@2.44.4를 그대로 쓴다. W SDK2.112.3으로 alias하거나 network install하지 않는다.</li><li><strong>GREEN:</strong> 두 PG의 worker cases, auth401/held422와 기존 성공·RETRY·REVIEW·ACKlost recovery를 검사한다. 실제 handler를 import하며 import.meta.main=false로 서버는 열지 않는다. SDK의 fetch만 로컬 stub으로 바꾸고 handler/RPC parser를 mock하지 않는다.</li></ul>
+<p>Edge 제품 변경과 새 driver/fixture 작성 뒤 <code>manifest --through release</code>를 다시 실행해 <code>d-edge-manifest.json</code>을 만든다. closure에는 위 새 worker driver·TS fixture·Edge 시험과 두 제품 파일·구 binary snapshot을 포함한다. 이전 d-release-manifest의 Edge hash를 재사용하지 않는다. MANIFEST_SHA도 새 d-edge-manifest의 실제 SHA256으로 갱신한다. current migration prefix와 baseline native97 pin은 유지한다.</p>
+<pre>cd "$D"
+python3 -I -B scripts/wallet/web-payment-durability-fixture.test.py manifest \
+  --through release --output "$EVIDENCE/d-edge-manifest.json"
+python3 -I -B scripts/wallet/web-payment-durability-worker-integration.test.py postgres:15.8 \
+  --case all --manifest "$EVIDENCE/d-edge-manifest.json" \
+  --manifest-sha256 "$MANIFEST_SHA" --run-label c-d6-pg15
+deno test --cached-only --deny-net \
+  --allow-env=SUPABASE_URL,SUPABASE_SERVICE_ROLE_KEY,SERVICE_ROLE_SECRET_KEY,SUPABASE_SECRET_KEYS \
+  scripts/wallet/fixtures/web-payment-durability-edge.test.ts</pre>
+<p>Deno cached graph는 실행 전 확인한다. 누락이면 setup 차단을 보고하고 외부 fetch나 SDK 대체로 통과시키지 않는다. synthetic env만 주며 테스트 sentinel이 로그·오류에 없는지 검사한다. 기존 Python runner가 새 worker의 S8을 알지 못하는 것은 예상되므로 그 runner를 수정해 과거 PASS를 바꾸지 않는다.</p>
+<ul class="steps"><li><strong>리뷰·커밋:</strong> 실제 worker/handler 경계를 검토받고 <code>fix(payment): consume fenced verification claims and held intake</code>로 위 소유 파일만 커밋한다.</li></ul>
+
+<h2 id="w1">W1 — transport bodyStatus와 exact RPC 계약</h2>
+<p><strong>파일:</strong> W <code>transport.ts</code>, <code>repository.ts</code>; 새 <code>durability-contract.ts</code>, <code>reconciliation-repository.ts</code>. 시험은 기존 <code>__tests__/lib/payment/paypal-charge-protocol.test.ts</code>, <code>paypal-charge-repository.test.ts</code>, 신규 <code>paypal-charge-durability-contract.test.ts</code>. product protocol.ts와 SDK는 바꾸지 않는다.</p>
+<p><strong>Interfaces:</strong> transport RESPONSE에 <code>bodyStatus:'PARSED'|'EMPTY'|'OVERSIZE'|'INVALID_UTF8'|'INVALID_JSON'|'STREAM_ERROR'</code>를 추가하고 기존 body:null 의미와 timeout·redirect:error를 유지한다. <code>durability-contract.ts</code>는 spec 4·5·8부/G8·G9 wire 입력·출력의 닫힌 union과 parser를 소유한다. evidence는 기존 <code>PayPalEvidence</code>, fact 원소는 <code>{evidence:PayPalEvidence,bind:boolean}</code>, assertion은 <code>{code:CallerAssertionCode,detail:Record&lt;string,unknown&gt;}</code>다. 생성 함수와 메서드는 아래 계약을 쓴다.</p>
+<pre>type SenderCapability = Pick&lt;ChargeLease,'attemptId'|'leaseToken'|'fencingVersion'&gt;;
+// SubmissionInput / ReadCompletionInput / 각 Result는 spec exact key와 enum이다.
+recordSubmissionResult(actorUserId:string, orderId:string,
+  sender:SenderCapability, input:SubmissionInput):Promise&lt;SubmissionResult&gt;;
+openReadCycle(actorUserId:string, orderId:string, actorKind:ReadActorKind):Promise&lt;ReadOpenResult&gt;;
+completeReadCycle(cycleId:string, cycleToken:string,
+  input:ReadCompletionInput):Promise&lt;ReadCompletionResult&gt;;
+recordPreIntentAssertions(actorUserId:string, orderId:string,
+  assertions:CallerAssertion[]):Promise&lt;PreIntentResult&gt;;
+createReconciliationRepository(client:SupabaseClient):ReconciliationRepository;
+// ReconciliationRepository:
+claim(executorId:string, leaseSeconds:number):Promise&lt;QueueClaimResult&gt;;
+finish(orderId:string,leaseToken:string,result:QueueFinishCode):Promise&lt;QueueFinishResult&gt;;
+recordRun(run:ReconciliationRunInput):Promise&lt;{replayed:boolean}&gt;;</pre>
+<p>위 네 메서드는 기존 <code>WebPaymentChargeRepository</code>에 추가한다. 기존 receivePurchase 정의는 남기되 W2 이후 workflow에서 호출하지 않는다. queue client는 별도 파일에서 S5–S7만 소비한다. run 입력 phase·metrics·PARTIAL_STALE_LEASE는 G5가 보완한 S7 그대로다. parser는 unknown→닫힌 union, exact key·UUID·timestamp·bigint 문자열·정수 범위를 검사한다. token은 내부 메모리 필드로만 사용한다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> 실제 fetch transport에서 6개 bodyStatus와 TRANSPORT_UNKNOWN를 고정한다. 빈 body·stream reader 오류·invalid UTF8·JSON·oversize를 서로 구분한다. 실제 repository+fetch stub으로 S1–S7 요청명/인자·exact 반환·알 수 없는 key·enum·cross order·숫자 bigint·token 반사 오류를 검사한다.</li></ul>
+<pre>expect(empty).toEqual({kind:'RESPONSE',status:200,body:null,bodyStatus:'EMPTY'});
+expect(streamError.bodyStatus).toBe('STREAM_ERROR');
+expect(classified.effectiveKind).toBe('ADVERSE'); // requested CLEAN과 분리
+expect(conflict.kind).toBe('CONFLICT_RECORDED');
+expect(held).toEqual({kind:'REVIEW_REQUIRED',reason:'INTAKE_HELD',grantEligible:false});
+await expect(readResultWithUnexpectedKey()).rejects.toMatchObject({stage:'RESPONSE'});
+expect(fetchCalls).toHaveLength(1);             // 자동 RPC 재시도0</pre>
+<ul class="steps"><li><strong>RED:</strong> 공통 W 명령에 위3개 시험 경로를 지정한다. 최초 실패는 bodyStatus 누락 또는 신규 메서드 부재여야 한다. 모듈 로딩 실패만으로 parser 의미를 검증했다고 하지 않는다.</li><li><strong>최소 구현:</strong> boundedJson은 판별자와 body를 반환하도록 바꾼다. RPC는 기존 retry(false)/10초 timeout/안전 오류를 유지한다. caller kind/category와 DB effective kind/category를 별개로 parse한다. 입력·출력에 secret을 담은 예외 message를 만들지 않는다.</li><li><strong>GREEN:</strong> 세 시험과 기존 provider-entry/binding-source 시험, tsc를 실행한다. package/lock/types/frozen protocol source hash가 그대로인지 확인한다. 다른 fetch fixtures에는 사실에 맞는 bodyStatus literal을 추가하며 EMPTY를 PARSED로 일괄 덮지 않는다.</li><li><strong>리뷰·커밋:</strong> <code>feat(payment): add durable result RPC adapters</code>로 명시 소유 파일만 커밋한다.</li></ul>
+
+<h2 id="w2">W2 — POST 분류와 보호 read 배선</h2>
+<p><strong>파일:</strong> <code>orchestrator.ts</code>, <code>durability-contract.ts</code>(공유 read window/report/runtime type), <code>utils/log-event-codes.ts</code>; 새 <code>submission-classification.ts</code>, <code>read-cycle.ts</code>. 기존 <code>__tests__/api/payment/web-payment-adapters.test.ts</code>, 새 <code>__tests__/lib/payment/paypal-charge-read-cycle.test.ts</code>를 수정·생성한다. W1 계약·D2/D3를 소비한다.</p>
+<p><strong>Interfaces:</strong> 순수 <code>classifySubmission(response:PayPalHttpResult,context:ChargeContext,binding:ProviderChargeBinding,sender:ChargeLease):SubmissionInput</code>와 <code>collectReadFacts(response:PayPalHttpResult,context:ChargeContext,binding:ProviderChargeBinding):ReadCompletionInput</code>를 각 신규 파일에서 제공한다. <code>runReadCycle(deps:ReadCycleDeps,input:ReadCycleInput):Promise&lt;ReadCycleReport&gt;</code>는 이미 확인한 context/binding/accessToken·actor·선택 read window를 받아 open→GET→complete를 수행한다. credential 획득과 owner/prepare/binding 검사는 기존 orchestrator에 남긴다. 의존 경계는 아래처럼 고정한다.</p>
+<pre>type ReadWindow = {deadlineAtMs:number; signal:AbortSignal; nowMs:()=&gt;number};
+type ReadCycleInput = {actorUserId:string;orderId:string;context:ChargeContext;
+  binding:ProviderChargeBinding;accessToken:string;actorKind:ReadActorKind;window?:ReadWindow};
+type ReadCycleDeps = {repository:WebPaymentChargeRepository;transport:PayPalTransport;nowMs:()=&gt;number};
+type ReadCycleReport = {kind:'COMPLETED'|'NOT_OPENED'|'WRITE_UNKNOWN'|'LATE'|'CONFLICT';
+  effectiveKind?:'CLEAN'|'ADVERSE'|'NO_DATA';intake?:IntakeResult|null;
+  reason?:'IN_PROGRESS'|'DEFERRED'|'NOT_APPLICABLE'|'FAILED';
+  opened:boolean;readCancelled:boolean;cycleId?:string;
+  hold?:{grantBlocked:boolean;admissionPossible:boolean;getEligible:boolean;version:string}};
+// PayPalChargeDeps에 신뢰된 내부 실행 문맥만 선택 추가한다.
+type ReconciliationRuntime = {actorKind:'SCANNER';window:ReadWindow;
+  onReadResult:(report:ReadCycleReport)=&gt;void};
+// credentials.resolve 입력은 선택 signal?:AbortSignal을 추가한다.
+// ensure/capture/reconcile/status의 기존 workflow 입력·결과와 browser DTO는 그대로다.</pre>
+<p>runtime은 executor가 주입하는 메모리 값이며 browser 입력으로 받지 않는다. <code>onReadResult</code>는 동기 보고용이며 DB 권한을 부여하지 않는다. 공유 type은 durability-contract.ts에서 선언하고 read-cycle.ts에서 사용한다. import type은 허용하되 런타임 순환 import는 만들지 않는다. 기존 <code>toPayPalChargeBrowserDto</code> export도 유지한다. <strong>W2가 orchestrator.ts authorize(현재115–150행)의 resolve·requestToken 배선과 read-cycle.ts getOrder 배선을 모두 소유한다.</strong> runtime이 있을 때 각 읽기 직전 남은 시간을 다시 계산하고, 양수이면 <code>AbortSignal.any([window.signal, AbortSignal.timeout(min(10000, remainingMs))])</code>를 전달한다. 남은 시간이 0 이하이거나 시작 전 취소됐으면 그 읽기를 호출하지 않는다. <strong>authorize가 budget 또는 시작 전 취소 때문에 resolve/token 읽기를 건너뛰면</strong> runtime.onReadResult에 <code>{kind:'NOT_OPENED',reason:'DEFERRED',opened:false,readCancelled:window.signal.aborted}</code>를 한 번 보고하고 기존 workflow 결과 IN_PROGRESS로 돌아온다. W3는 이 신뢰된 보고를 IN_PROGRESS나 CREDENTIAL_UNAVAILABLE보다 먼저 DEFERRED로 정산한다. 이는 credential/token 획득 실패와 구분되며 cycle0·next_due=now·연속 실패 카운터 불변이다. token/GET은 기존 transport의 signal 인자를 사용하고 resolver에는 선택 signal을 전달한다. 신뢰된 resolver는 그 signal의 취소를 지켜야 한다. prepare/write에는 이 읽기 signal을 전달하지 않는다. W3는 이 완성된 W2 계약을 주입하며 authorize를 추가 수정할 책임을 갖지 않는다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> 분류 commit ACK 뒤에만 eligible NO_RESPONSE GET1, P1 오류/ACKlost이면 POST 뒤 보호 GET0, 422 ADVERSE, POST partial X를 입력 그대로 기록하는지 검사한다. partial VOIDED fact 불가도 assertion으로 commit한다. intent 불명 POST0, 저장 성공 P3가 새 claim을 막는 것과 저장 실패 R-PRE 잔여를 분리한다.</li></ul>
+<pre>expect(rpcNamesAfterPost).toEqual(['record_web_payment_submission_result']); // P1 실패
+expect(protectedGetCallsAfterPost).toBe(0); // 기존 S1 preflight GET는 별도
+expect(outcome.kind).toBe('SUBMISSION_UNKNOWN');
+expect(eligibleTrail).toEqual(['P1_ACK','OPEN_ACK','GET','COMPLETE_ACK']);
+expect(capturePostCount).toBe(1);
+expect(directReceiveCalls).toBe(0);
+expect(partialVoided.assertions).toContainEqual({code:'UNRECORDABLE_PROVIDER_FACT',
+  detail:{fact_kind:'ORDER',reason:'ADVERSE_STATUS_PARTIAL'}});
+expect(completionSent.observed_capture_ids).toEqual(['X','Y']);
+expect(completionSent.facts.filter(f =&gt; f.evidence.identity_kind === 'CAPTURE')
+  .map(f =&gt; f.evidence.external_id)).toEqual(['X']);
+expect(workflowOutcome.kind).toBe('REVIEW_REQUIRED');
+expect(directReceiveCalls).toBe(0); // DB effective ADVERSE·intake0은 D2/H1 observer로 검증
+expect(shapeError.category).toBe('READ_PARTIAL_INDETERMINATE');
+expect(shapeError.assertions).toContainEqual({code:'UNREPRESENTABLE_CONTRADICTION',detail:{}});
+expect(declinedWorkflow.kind).toBe('CAPTURE_FAILED');
+expect(failedCaptureWorkflow.kind).toBe('CAPTURE_FAILED');</pre>
+<p><code>provider_read_window_wiring</code>(W2 adapters/read-cycle)는 resolver·requestToken·getOrder 각각에 대해, window 잔여500ms일 때 주입 signal의 abort가 500ms에 일어나고 원 window.signal 취소도 전파되는지 fake clock으로 검사한다. 잔여20000ms면 각 읽기 상한은10000ms, 잔여0ms/시작 전 취소면 해당 호출0이다. open 뒤 GET 미시작은 명시 NO_DATA completion이며, credential/token 전에 예산 소진이면 cycle0이다. 느린 prepare 완료를 기다린 뒤 실제 시간을 다시 계산하는 경우도 넣는다. 이 시험을 type 추가만으로 통과시키지 않는다.</p>
+<ul class="steps"><li><strong>RED:</strong> 공통 W 명령에 adapters/read-cycle 시험을 지정한다. 기존 분류 없는 direct GET/receive와 expected P1/open 경로 차이로 실패해야 한다.</li><li><strong>최소 구현:</strong> classify/collect는 실제 protocol 평가와 기존 evidence builder를 사용한다. classifySubmission에는 commit ACK를 받은 intent lease를 전달하여 오래된 pre-claim context의 attemptId를 권한으로 쓰지 않는다. 모든 S2 POST는 P1을1회 호출하고, S3/S4/S5/S8 GET은 open 성공 뒤만 보낸다. S6 intent 없는 read는 기존 기록과 EXTERNAL_CAPTURE_WITHOUT_INTENT 경계로 둔다. W는 receive를 직접 호출하지 않는다. 새로운 event code4개는 spec 8부 이름대로 추가한다.</li><li><strong>순수 분류 GREEN:</strong> P1/P2 모든 닫힌 category, BODY_UNREADABLE5종, full/partial VOIDED, 최초/동일/다른 capture, raw32/33, COUNTRY/SHAPE/INTENT·same-ID race를 literal로 검사한다. E/O 대조의 최종 권한은 DB이며 W 메모리로 대체하지 않는다. W unit의 callback 순서를 commit 증거로 보고하지 않는다.</li><li><strong>기존 시험 이관:</strong> 기존 동작·실제 provider 사실 literal은 유지하고 RPC tape만 새 원자 경계에 맞춘다. 422 뒤 INTAKE_PENDING 기대는 ADVERSE 보류로 바꾼다. 이관 규칙은 <strong>intent 뒤 S2/P1 또는 S3–S5/S8/P2에서 사실별 RPC 실패 뒤에도 다음 사실 기록을 계속 기대하는 모든 시험</strong>에 적용한다. 아래 7개는 최소 명시 목록이며 닫힌 목록이 아니다. 원 입력의 실제 fact·순서·중복 제거 literal을 새 단일 RPC payload에 보존하고 실패 경계만 원자 RPC로 옮긴다. P1 실패는 SUBMISSION_UNKNOWN·POST 뒤 보호 GET0·intake0, P2 실패는 이미 수행한 보호 GET1·SUBMISSION_UNKNOWN·추가 GET0·intake0이다. 기존 S1 preflight GET 수는 별도로 센다. S0/S1의 최선 기록 실패는 이 규칙으로 바꾸지 않는다. 원 이름·대체 이름·P1/P2·이유를 시험에 주석으로 남기고 최종 보고에도 연결한다.</li></ul>
+<table><thead><tr><th>원 시험 식별 문구</th><th>대체 시험 이름</th></tr></thead><tbody>
+<tr><td>attempts the next remaining actual ID in response order after the first record returns 503 (1393)</td><td><code>atomic multi-capture POST failure does not continue per-fact delivery</code> · P1 실패</td></tr>
+<tr><td>keeps the current call REVIEW after actual contradictory POST record returns 503 (1849)</td><td><code>atomic contradictory POST failure returns submission unknown</code> · P1 실패</td></tr>
+<tr><td>records deduplicated actual A then B after complete AUTHORIZE POST even when A record returns 503 (2062)</td><td><code>atomic AUTHORIZE A-B payload is preserved when classification fails</code> · P1 실패</td></tr>
+<tr><td>still records actual GET Y after matching FUTURE_ORDER record returns 503 (2154)</td><td><code>atomic FUTURE_ORDER GET failure leaves read completion unknown</code> · P2 실패</td></tr>
+<tr><td>still records the actual CAPTURE once after the FUTURE_ORDER record returns 503</td><td><code>atomic FUTURE_ORDER classification failure does not recover or intake</code> · P1 실패</td></tr>
+<tr><td>still records the AUTHORIZE CAPTURE once after the ORDER record returns 503</td><td><code>atomic AUTHORIZE classification failure does not recover or intake</code> · P1 실패</td></tr>
+<tr><td>still binds the actual capture once after the unknown-status ORDER record returns 503</td><td><code>atomic unknown-status classification failure does not recover or intake</code> · P1 실패</td></tr>
+</tbody></table>
+<p>검색 기준: <code>rg -n 'it\(|503|RPC\.observe|RPC\.bind|SUBMIT_RESPONSE|LOOKUP' __tests__/api/payment/web-payment-adapters.test.ts</code>. 각 검색 후보의 전체 시험과 실제 경로를 읽고 S0/S1과 intent 뒤 경로를 나눈다. 구현 시 추가로 발견한 같은 전제의 시험도 위 규칙으로 원 이름과 대체 이름을 기록한다.</p>
+<ul class="steps"><li><strong>회귀 GREEN:</strong> adapters·read-cycle·W1·기존 binding/entry 시험과 payment 전체를 실행한다. legacy expected-fail2와 기존 skip1은 손대지 않는다. 단순 PASS 수 유지를 위해 의미 있는 실패를 삭제하지 않는다.</li><li><strong>리뷰·커밋:</strong> <code>feat(payment): gate PayPal recovery on durable read cycles</code>. 제품 pin 변경 뒤 옛 D2 harness의 FROZEN_RUNTIME_PIN 실패는 새 C 실행 증거와 구분해 기록한다.</li></ul>
+
+<h2 id="w3">W3 — 유한 GET executor와 닫힌 internal entry</h2>
+<p><strong>파일:</strong> 새 <code>reconciliation-executor.ts</code>, <code>reconciliation-entry.ts</code>, <code>app/api/internal/payment/paypal-reconciliation/route.ts</code>; 기존 <code>repository.ts</code>의 client 주입 경계만 필요 범위에서 사용한다. 새 <code>paypal-charge-reconciliation-executor.test.ts</code>, <code>__tests__/api/payment/paypal-reconciliation-entry.test.ts</code>. W2와 D4를 소비한다.</p>
+<p><strong>Interfaces:</strong> <code>runPayPalReconciliationBatch(deps:ReconciliationExecutorDeps,input:ReconciliationBatchInput):Promise&lt;ReconciliationRunSummary&gt;</code>, <code>createReconciliationHandler(deps:ReconciliationEntryDeps):(request:Request)=&gt;Promise&lt;Response&gt;</code>, <code>createClosedReconciliationDeps():ReconciliationEntryDeps</code>. input은 executorId/runId UUID, instanceId≤120, maxItems1..25, signal이다. deps는 queue S5–S7, item별 PayPalChargeDeps factory, nowMs, 안전 log다. 각 item의 actor는 claim의 DB user_id만 쓴다. entry는 숫자 metrics만 응답한다.</p>
+<p>production factory는 매 invocation 새 Supabase client를 만든다. 주입 fetch wrapper가 RPC pathname <code>/rest/v1/rpc/get_web_payment_charge_context</code>와 <code>/rest/v1/rpc/get_web_payment_provider_binding</code> 두 읽기에만 min(10초,남은55초)·run signal을 합친다. 그 외 RPC(write·prepare replay 포함)는 기존10초를 유지한다. 동결된 binding-source.ts 본문은 바꾸지 않는다. credential resolver는 선택 signal을 소비하지만 production은 closed resolver만 조합한다. 공통 client의 write signal까지 deadline으로 바꾸지 않는다.</p>
+<p>route는 POST, <code>runtime='nodejs'</code>, <code>maxDuration=120</code>. 기술 선택으로 header <code>x-payment-reconciliation-secret</code>, 설정명 <code>INTERNAL_PAYMENT_RECONCILIATION_SECRET</code>을 쓴다. 미설정503, 불일치401, 정상 인증 후에만 executor를 부른다. 길이 확인 뒤 constant-time 비교한다. 실제 secret 등록·배포·호출은 OG2다. 요청 본문의 actor/order/credential로 실행 범위를 확장하지 않는다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> 실제 repository/fetch stub과 clock-controlled deps로 soft20초·provider55초·open20초 경계, owner/prepare/binding 지연, open10초 뒤 재계산, GET 미시작/취소, complete/finish/FINISHED10초, STALE_LEASE를 검사한다.</li></ul>
+<pre>expect(claimStartedAtMs.every(t =&gt; t &lt; t0 + 20_000)).toBe(true);
+expect(openAtRemaining19_999).toBe(0);
+expect(openAtRemaining20_000).toBe(1);
+expect(noReadBudgetCompletion.category).toBe('READ_LOCAL_BUDGET_EXHAUSTED');
+expect(beforeGetCancelledCompletion.category).toBe('READ_LOCAL_CANCELLED');
+expect(alreadyParsedAdverse.effectiveKind).toBe('ADVERSE');
+expect(chargeClaimCalls + intentCalls + createCalls + captureCalls).toBe(0);
+expect(itemGetCalls).toBeLessThanOrEqual(1);
+expect(closedResolverResult).toMatchObject({opened:0,credential_unavailable:1});
+expect(staleRun.resultCode).toBe('PARTIAL_STALE_LEASE');
+expect(finishedWriteFailedResponse.status).toBe(503);
+// credential_budget_skip / token_budget_skip: 실제 finish RPC 요청과 run 집계
+expect(budgetSkipFinishRpcRequests.map(r =&gt; r.p_result_code)).toEqual(['DEFERRED']);
+expect(budgetSkipMetrics).toMatchObject({deferred:1,credential_unavailable:0,opened:0});
+// prereport_review_is_held: read 보고 없이 REVIEW_REQUIRED인 경우도 finish 1회
+expect(prereportReviewFinishRpcRequests.map(r =&gt; r.p_result_code)).toEqual(['HELD']);</pre>
+<ul class="steps"><li><strong>RED:</strong> 공통 W 명령에 executor/entry 시험을 지정한다. 신규 함수/route 부재와 기대 auth·time boundary가 첫 실패다.</li><li><strong>최소 구현:</strong> STARTED ACK 뒤 t0를 정하고 item당 claim1→owner/prepare/binding/credential/token→open/read/complete→finish를 순차 수행한다. 시작한 write는 await하며 provider deadline 뒤 complete/finish/FINISHED도 정산한다. finish mapping은 아래 표로 고정한다. run result 우선순위는 WRITE_FAILED &gt; PARTIAL_STALE_LEASE &gt; DISCOVERY_FAILED &gt; PARTIAL_BUDGET &gt; CREDENTIAL_UNAVAILABLE &gt; OK다. 첫 실패 원인과 metrics는 우선순위 때문에 지우지 않는다.</li></ul>
+<table><thead><tr><th>확인 결과</th><th>finish code</th></tr></thead><tbody>
+<tr><td>intake INTAKE_PENDING</td><td>INTAKE_PENDING</td></tr><tr><td>확인된 ADVERSE/CONFLICT/HELD 또는 read 보고 전 workflow REVIEW_REQUIRED</td><td>HELD</td></tr><tr><td>CLEAN 무capture 또는 PENDING, 접수 없음</td><td>NO_CHANGE</td></tr><tr><td>commit ACK를 받은 NO_DATA</td><td>NO_DATA</td></tr><tr><td>closed credential 또는 token 획득 실패, cycle 없음</td><td>CREDENTIAL_UNAVAILABLE</td></tr><tr><td>READ_IN_PROGRESS</td><td>IN_PROGRESS</td></tr><tr><td>open 전 시간 부족 또는 authorize의 NOT_OPENED/DEFERRED 보고</td><td>DEFERRED</td></tr><tr><td>open/complete ACK 불명·예외·late·기타</td><td>FAILED</td></tr>
+</tbody></table>
+<p>W3의 <code>credential_budget_skip</code>은 resolve 시작 전 잔여0ms/취소 시 resolve0, <code>token_budget_skip</code>은 정상 resolver 반환 뒤 budget 소진 시 requestToken0을 검사한다. 두 경우 finish DEFERRED1회와 credential_unavailable0이다. <code>prereport_review_is_held</code>는 read 보고 전 REVIEW_REQUIRED가 finish HELD1회이며 FAILED가 아님을 실제 RPC request tape로 확인한다. 확인된 complete의 hold.grantBlocked 또는 intake INTAKE_HELD는 HELD로 정산하고 NO_CHANGE로 덮지 않는다. read 보고 전 workflow REVIEW_REQUIRED는 HELD이며 finish가 현재 hold를 재평가한다. 그 외 read 보고를 받지 못한 owner/prepare/binding 실패는 FAILED다. 이미 open된 뒤의 local budget/cancel completion은 NO_DATA다. finish STALE_LEASE는 queue 덮어쓰기 없이 별도 metrics에 남긴다. complete ACK 불명은 write_unknown이며 commit 전/후 어느 쪽으로도 단정하지 않는다. STARTED 실패는 새 claim 없이503, FINISHED 실패도503이다.</p>
+<ul class="steps"><li><strong>GREEN:</strong> W3·W2/W1 전체와 auth 실패 executor0호출·숫자 전용 응답·DB user_id actor·비밀 sentinel Q7pPriv 비노출을 검사한다. frozen binding-source hash, 읽기 두 RPC만 deadline 적용, 시작 write는 signal 취소 뒤에도 await하는 것을 확인한다. closed production factory로 provider 호출0을 확인한다.</li><li><strong>리뷰·커밋:</strong> <code>feat(payment): add closed PayPal reconciliation executor</code>. 실제 route maxDuration/pg_net timeout 보장은 OG2에서 별도 확인하며 로컬 시계 시험으로 production 보장을 주장하지 않는다.</li></ul>
+
+<h2 id="h1">H1 — PostgREST·commit observer·실제 kill/restart</h2>
+<p><strong>조정자 선행 작업:</strong> H1 manifest 생성 전에 조정자가 D의 <code>supabase/prod-cutover/2026-11-17-web-payment-reconciliation-cron/kit.html</code>을 최종 M1–M5 CLI 경로·SHA와 D6/W3 제품 commit으로 갱신하고, D에서 <code>docs(payment): finalize C cutover kit</code>으로 커밋한다. D4의 초안 kit를 최종 적용 목록으로 쓰지 않는다. H1은 그때의 D/W HEAD와 제품 blob hash를 기록하며, 이후 문서 commit과 시험 당시 HEAD는 최종 보고에서 구분한다. 이 문서 갱신은 cron 적용이나 운영 drain/fence 실행이 아니다.</p>
+<p><strong>파일:</strong> 새 <code>scripts/payment/intake-hold-http/run.py</code>, <code>test_run.py</code>, <code>bundle.mjs</code>, <code>guard.cjs</code>, <code>seed.sql</code>, <code>observer.sql</code>, <code>faults.sql</code>; 새 <code>__tests__/integration/payment/intake-hold-postgrest.http.ts</code>. 기존 harness 3개 디렉터리는 동결한다. 기존 pair/setup helper를 읽기 전용으로 import하고 manifest에 그 실제 source hash도 넣는다.</p>
+<p><strong>Interfaces:</strong> <code>run.py manifest --output PATH</code>, <code>run.py run --image postgres:15.8|postgres:17.6 --phase canonical|fault --manifest PATH --manifest-sha256 SHA --run-label LABEL</code>. manifest는 W/D clean tracked HEAD, 실제 migration prefix, 현재 제품/시험/harness hash·SDK 설치 source·image ID·PostgREST14.8을 담는다. 생성 후 drift면 실행을 거부한다. <code>test_run.py</code>는 validator/child lifecycle/evidence reducer만 시험하고 실제 SQL 증거를 대신하지 않는다.</p>
+<p>TS driver는 실제 repository·orchestrator·executor·분류/read-cycle 모듈을 bundle한다. provider fetch와 credential만 synthetic fixture로 바꾸고 DB 호출은 실제 PostgREST를 통과한다. 별도 Python observer 연결이 commit 행을 읽는다. 금융 양성 control은 기존 app source로 하고 PayPal COMPLETE를 열어 통과시키지 않는다.</p>
+<ul class="steps"><li><strong>실패 시험 작성:</strong> manifest prefix 누락·hash drift·잘못된 SDK bundle·CID/네트워크 소유권·fake kill/restart·observer 없는 commit claim·token 유출 tape·의도치 않은 provider 호출을 거부하는 validator case를 작성한다.</li></ul>
+<pre>self.assertEqual(validate_missing_stage().code, 'CONTRACT_PREFIX_MISMATCH')
+self.assertEqual(validate_source_drift().code, 'SOURCE_DRIFT')
+self.assertFalse(evidence_with_same_pid_restart_is_valid)
+self.assertFalse(evidence_without_observer_commit_is_valid)
+self.assertNotIn('Q7pPriv', persisted_report)
+self.assertEqual(expected_capture_posts_per_order, 1)
+self.assertEqual(unexpected_network_destinations, [])</pre>
+<ul class="steps"><li><strong>RED:</strong> <code>python3 -I -B scripts/payment/intake-hold-http/test_run.py</code>는 validator 미구현을 보여야 한다. 그 뒤 canonical smoke는 새 spec contract가 실제 DB/PostgREST에 설치되지 않았으면 정확 missing-contract로 닫혀야 한다.</li><li><strong>최소 구현:</strong> case별 provider/RPC allowlist와 source manifest, 실제 child PID 소유·kill·wait·새 PID 생성, observer와 raw tape/receipt reducer를 만든다. root가 소유한 proxy가 특정 RPC의 DB commit 전 실패 또는 observer commit 뒤 ACK 유실을 주입한다. callback 순서나 getter 문자열을 commit/restart 증거로 쓰지 않는다.</li></ul>
+<table><thead><tr><th>phase / case</th><th>실행과 독립 기대</th></tr></thead><tbody>
+<tr><td>canonical / first_completed</td><td>capture link 없음→POST1→P1 CLEAN→intake/inbox/receipt 각1. 같은 raw replay 증가0. scope는 실제 binding과 일치한다.</td></tr>
+<tr><td>canonical / eligible_no_response</td><td>P1 NO_RESPONSE commit 뒤만 open→GET1→complete. P1 RPC 실패/ACKlost인 같은 process는 GET0이다.</td></tr>
+<tr><td>canonical / actual_facts</td><td>실제 full/partial adverse·VOIDED·422·raw32/33·같은-ID race와 protocol mismatch 사실/주장을 DB에서 대조한다. raw32 33facts와 caller8 양성은 reachable ADVERSE 형태다.</td></tr>
+<tr><td>canonical / observed_id_matrix</td><td>생략/[]/형태 오류 × E=∅/{X} 여섯 조합, O={X,Y}/fact={X} downgrade, POST X→GET X 양성/GET Y divergence 음성.</td></tr>
+<tr><td>fault / kill_before_p1</td><td>A가 POST 응답을 받은 뒤 P1 전 실제 종료. B는 분류를 만들 수 없음. 실제90초 뒤 ABSENT, intake0, scanner 자동 claim 없음.</td></tr>
+<tr><td>fault / p1_before_commit</td><td>proxy가 DB commit 전 실패. observer T1/사실/주장0. A/B 모두 sender capability 없는 재시작으로 부재를 채우지 않음. ABSENT.</td></tr>
+<tr><td>fault / p1_ack_loss + restart_xy</td><td>A의 partial X/NO_RESPONSE commit을 observer 확인 후 ACK를 버리고 A 종료. 빈 메모리 B의 GET Y는 DB E/O divergence, intake0. 별도 주문의 GET X는 CLEAN/intake1. B에 X를 별도로 주입하지 않음.</td></tr>
+<tr><td>fault / kill_before_complete</td><td>NO_RESPONSE→g1 OPEN→adverse GET 응답 수신→complete 전 A 종료. 실제45초 뒤 sweep ABANDONED. B의 정상 g2 CLEAN도 intake0. 기존 intake 주문은 downstream 비종결 RETRY/NOT_CLAIMABLE, grant0.</td></tr>
+<tr><td>fault / complete_ack_loss</td><td>commit 전 실패는 OPEN→ABANDONED. commit 후 유실은 저장 CLEAN/ADVERSE/NO_DATA 유지. sweeper가 완료된 행을 바꾸지 않음.</td></tr>
+<tr><td>fault / nth_fact_failure</td><td>disposable overlay trigger가 33번째 실제 사실 insert에서 예외. T1/T3/T5/새 사실/claim/intake0, cycle OPEN 유지. trigger 제거·pin 복원을 확인하고 제품 DDL에는 넣지 않음.</td></tr>
+<tr><td>fault / conflict_and_late</td><td>CLEAN 뒤 다른 hash 정상 CONFLICT_RECORDED commit→B hold차단. ABANDONED 뒤 late ADVERSE/INVALID sticky. 같은 payload replay 증가0.</td></tr>
+</tbody></table>
+<p>W unit fixture quote는 기존999/9.99, native/HTTP fixture는123/1.23(충돌234/2.34)로 구분한다. native/HTTP synthetic binding scope는 account <code>fixture-account-v1</code>, merchant <code>binding-merchant-v1</code>, country US를 명시한다. quote·reference·merchant가 맞지 않아 우연히 보류되는 false-positive를 금지한다.</p>
+<ul class="steps"><li><strong>GREEN:</strong> Python validator, canonical/fault를 각 PG에서 새 label과 별도 owned pair로 실행한다. gateway의 최대 유효 payload 통과는 여기서 실제 측정한다. 각 phase receipt는 expected/actual case ID·raw hash·observer assertion·child exit·정확 CID/network ledger 부재를 포함한다. 결과 수를 미리 정하지 않는다.</li></ul>
+<pre>cd "$W"
+python3 -I -B scripts/payment/intake-hold-http/test_run.py
+python3 -I -B scripts/payment/intake-hold-http/run.py manifest --output "$EVIDENCE/c-http-manifest.json"
+python3 -I -B scripts/payment/intake-hold-http/run.py run --image postgres:15.8 \
+  --phase canonical --manifest "$EVIDENCE/c-http-manifest.json" \
+  --manifest-sha256 "$MANIFEST_SHA" --run-label c-http-pg15-canonical
+python3 -I -B scripts/payment/intake-hold-http/run.py run --image postgres:15.8 \
+  --phase fault --manifest "$EVIDENCE/c-http-manifest.json" \
+  --manifest-sha256 "$MANIFEST_SHA" --run-label c-http-pg15-fault</pre>
+<p>PG17.6도 동일 phase를 실행한다. 실제 SQL 문장·provider/RPC tape를 보존하되 persisted raw에는 token을 hash로 치환한다. credential/PII/sentinel은 저장하지 않는다. observer는 원문 비밀을 읽어 출력하지 않고 필요한 count/kind/version/hash만 수집한다. fault 지점은 정확 owned child에만 적용하며 일반 pkill, 외부 network, 운영 DB/provider 연결은 허용하지 않는다.</p>
+<ul class="steps"><li><strong>리뷰·커밋:</strong> <code>test(payment): prove C holds across HTTP and process restarts</code>. final report는 새 HTML 문서로 커밋하고 기존 PARTIAL 원문·실패 기록은 덮지 않는다.</li></ul>
+
+<h2 id="coverage">자체 대조·전체 검증·승인 관문</h2>
+<table><thead><tr><th>요구 / 증거</th><th>소유 단위</th></tr></thead><tbody>
+<tr><td>R1 모든 receive와 하류, S-H1 OPEN/기존 intake, S-H2 비종결·해제</td><td>D1/D3/D5/D6/H1</td></tr><tr><td>R2 intent sender fencing·late·replay/conflict</td><td>D2/W1/W2/H1</td></tr><tr><td>R3 S2–S5/S8 cycle·세대·provenance·sticky·X/Y·late</td><td>D1/D2/W2/H1; S0/S1 잔여 명시</td></tr><tr><td>R4 bodyStatus·분류 commit 뒤 GET·VOIDED·4xx</td><td>D2/W1/W2/H1</td></tr><tr><td>R5 basis/version·감사·ADVERSE 분리·권한0</td><td>D5/D3/H1</td></tr><tr><td>R6/R7 pre-inbox scanner·W/D 경계·fairness·budget·health·제안5분</td><td>D4/W3/H1</td></tr><tr><td>G1/G2/G6/G9 provider·T10·ACL·counter</td><td>D3/D4/D6/W1/W3</td></tr><tr><td>G3/G4/G7/G8/G9 VOIDED·lock·capacity·O/category</td><td>D2/W2/H1</td></tr><tr><td>T01–T30·V-* 증명 행렬</td><td>V-ISO: D2 iso_results → D3 iso_admission_downstream → D4 iso_queue_cron → D5 iso_release. V-ISO-FRESH/V-PREINTENT: D3. T20/V-NO-DATA/V-LINK: D2. V-ALERT-DETAIL: D4. 나머지는 각 단위의 named case를 사용하고 최종 보고에는 그 실행 결과만 연결. 미실행은 STATIC, 운영은 OG/UNVERIFIED 유지.</td></tr>
+</tbody></table>
+<p><strong>G1 cutover:</strong> drain/fence 부재 시 migration·재개 금지는 <strong>STATIC/OG2 필수 선행조건</strong>이다. D4 kit는 M1–M5 전체와 호환 D6/W 배포를 하나의 승인 적용 단위로 적고, 구 worker/in-flight DB transaction 종료 증거가 없으면 중단하도록 한다. 이번 로컬 구현·시험으로 운영 drain을 완료했다고 쓰지 않는다.</p>
+<h3>최종 조정자 검증</h3>
+<ol>
+<li>각 단위의 RED/GREEN·review/recheck와 실제 commit을 수집한다. reviewer에게 spec·요구·diff·소유 파일·시험 결과만 주고 구현자의 자기평가를 통과 근거로 주지 않는다.</li>
+<li>새 D native 6개 suite를 PG15/17에서 최종 HEAD로 실행한다. old current10 원본은 동결 기준선이다. C 최종 의미는 새 compatibility suite로 검증한다. old suite의 변경된 의미(무분류 PayPal direct receive, v1 PayPal claim, watermark hold, 422복구, isolation)는 case별 의도 변경을 연결한다. 범위 밖 실패는 무시하지 않는다.</li>
+<li>D actual worker/handler 시험, W 대상 전체·payment 전체·전체 Vitest와 <code>npx --no-install tsc --noEmit</code>, 새 canonical/fault HTTP를 실행한다. 기존 legacy expected-fail2/skip1을 유지한다. 생성 types·package/lock·protocol/binding/entry·D97·기존 harness source hash와 관련 없는 사용자 변경을 확인한다.</li>
+<li>whole-branch 반대 공급자 Frontier 리뷰는 W/D 최종 diff와 새 실제 증거를 검토한다. 새 모델 투표로 미해결 지적을 덮지 않는다. 중대한 이견은 근거 기반 1회 반박 뒤 사용자 결정 경계로 보고한다.</li>
+<li>W <code>docs/reports/2026-11-17-web-payment-u3-c-validation.html</code>과 기존 roadmap/validation의 append-only 항목을 작성한다. T/V case별 PASS/FAIL/PARTIAL/UNVERIFIED, exact hashes/HEAD, DTO·secret 검증, source read 한계, cleanup, 변경된 시험 기대를 기록한다. 과거 설계 builder FAIL/PASS와 runtime 결과를 분리한다.</li>
+<li><code>git status --short --untracked-files=all</code>로 새 문서 누락을 확인하고 소유 경로만 stage한다. source/evidence raw·token·사용자 untracked는 넣지 않는다. 문서는 <code>docs(payment): record C durability validation</code>로 커밋한다. HTML 구조·링크와 Orca browser 렌더를 확인한다. push/merge/배포/운영 cron 등록은 하지 않는다.</li>
+</ol>
+<p>새 migration의 service RPC는 S1–S8 8개다. actual classifier evidence와 catalog/manifest를 대조하고 assertion 함수를 실행한다. release는 runtime0이며 manifest 대상이 아니다. PUBLIC은 ACL grantee=0으로, 실제 역할의 effective EXECUTE는 역할별로 검사한다. 기존 attestation owner를 command owner로 바꾸거나 membership을 늘리지 않는다.</p>
+<h3>계획 작성 자체 검토 기록</h3>
+<p>spec G0–G9·기반 schema/hold/ABI/시험·원 R1–R7을 위 소유 단위에 연결했다. task 간 SQL/wire/TypeScript 이름을 맞췄다. Review Focus 다섯 경계는 각각 named case를 가진다. setup은 D1/H1 결과에 포함했고 제품 동작이 없는 별도 빈 task를 만들지 않았다. 구현 body 대신 서명·수치·실패 기대·검증 명령을 적었다. 실제 driver/helper의 미지원 contract prefix와 새 worker S8을 기존 runner에 강제로 끼워 넣지 않는다.</p>
+<p id="review-status"><strong>독립 계획 리뷰: 정적 builder PASS.</strong> 원 Opus 리뷰(task_654c814b7517, ctx_124c8cc7d7ca)의 Medium4/Low9·builder FAIL은 역사로 보존한다. 1회 한정 재검증(task_c5e0d521f52e, ctx_a8db5ab5d9d6)은 원13건 모두 FIXED, 새 Medium0/비차단 Low7, builder PASS로 판정했다. 새 Low7은 조정자가 원본을 대조하여 예산 skip 정산·HELD 시험·enroll 경쟁 기대·V-LINK literal·역할 이름/seed·kit 최종 소유·편집을 보완했다. 이 마지막 문장 보완의 추가 독립 재검증은 하지 않았다. 이 PASS는 계획의 정적 구현 가능성 판정이며 runtime 시험·사용자 구현 승인·전체 U3 종결이 아니다.</p>
+<details id="plan-review-corrections"><summary>원 리뷰 13건의 조정자 수정안 · 1회 재검증에서 FIXED</summary><p>아래 원13건은 계획 문장에 대한 1회 독립 재검증에서 FIXED 판정을 받았다. runtime 시험 결과가 아니다. T20의 token 재사용 음성은 다른 cycle로의 crossing이며 같은 cycle의 정당 exact replay를 거부하지 않는다.</p><table><thead><tr><th>지적</th><th>수정 위치와 범위</th></tr></thead><tbody><tr><td>M1</td><td>W2 이관 규칙+7개 최소 목록. S0/S1 제외, P1/P2 실패의 GET 수 분리.</td></tr><tr><td>M2</td><td>D5 disposable permission CHECK 확장·원복. 제품 M5 권한/역할/CHECK 불변.</td></tr><tr><td>M3</td><td>W2 authorize/read-cycle가 resolver/token/GET의 signal·남은 시간 배선을 소유. named test 추가.</td></tr><tr><td>M4</td><td>V-ISO는 D2→D3→D4→D5의 실제 생성 단계에 배정. snapshot/PREINTENT/token/NO_DATA/link/alert named case 추가.</td></tr><tr><td>L1</td><td>D6 구 worker/verifier를 고정 D HEAD에서 temp snapshot으로 추출하고 blob/path/SHA 기록.</td></tr><tr><td>L2</td><td>D6 제품·driver·fixture 작성 뒤 새 d-edge manifest와 SHA 생성.</td></tr><tr><td>L3</td><td>D2는 직접 T7 INSERT 모사, D4가 실제 enroll 경쟁을 소유.</td></tr><tr><td>L4</td><td>D1 admission 삽입점을 NOT_COMPLETED 뒤/payload 앞에 고정.</td></tr><tr><td>L5</td><td>W2는 실제 전송 O/fact payload와 workflow·호출 부재를 단언. DB downgrade/intake0은 D2/H1 observer.</td></tr><tr><td>L6</td><td>운영 drain/fence는 STATIC/OG2 필수 선행조건. M1–M5 중간 배포 금지.</td></tr><tr><td>L7</td><td>W2에 형태 오류 category/assertion, DECLINED/FAILED→CAPTURE_FAILED literal 추가.</td></tr><tr><td>L8</td><td>W 계획 HEAD 구분·review 상태 갱신·D3 교체 RPC actual catalog evidence 재대조.</td></tr><tr><td>L9</td><td>read 보고 전 REVIEW_REQUIRED는 HELD로 정산하고 finish에서 현재 hold 재평가.</td></tr></tbody></table></details>
+<p><strong>구현 시작 조건:</strong> 사용자가 이 계획을 검토하여 승인한 뒤 기존 Orca 순차 방법으로 실행한다. 각 dispatch는 최신 usage/account/capability/Route v2와 실제 model/effort/정책 로딩을 확인한다. 차단이면 새 worker를 만들지 않는다. 이 계획 승인도 OG1–OG6·운영/배포/실 provider 개방을 뜻하지 않는다.</p>
+<p class="muted">작성 근거: 현재 W transport/repository/orchestrator/binding 경계, D native runner/fixture·admin permission source·실제 worker/handler와 기존 offline driver를 계획에 필요한 범위로 읽었다. 나머지 native 전집합·운영 DB·provider 의미·Deno cache·gateway 한도는 새로 검증했다고 하지 않는다. 엄격한 ASD-STE100 적합성은 주장하지 않으며 한국어 명료성 원칙을 적용했다.</p>
+</main></body></html>
