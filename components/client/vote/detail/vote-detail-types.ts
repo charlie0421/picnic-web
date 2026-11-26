@@ -55,7 +55,7 @@ export const HEADER_RECALC_DELAY_MS = 100;
 export interface VoteDetailPresenterProps {
   vote: import('@/types/interfaces').Vote;
   initialItems: import('@/types/interfaces').VoteItem[];
-  rewards?: any[];
+  rewards?: import('@/types/interfaces').Reward[];
   className?: string;
   enableRealtime?: boolean;
   pollingInterval?: number;

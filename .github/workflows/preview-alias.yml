@@ -1,0 +1,139 @@
+# 고정 주소 preview.picnic.fan 을 이 저장소의 가장 최근 Preview 배포에 맞춘다.
+#
+# Vercel 은 브랜치마다 다른 Preview 주소를 만든다. 이 워크플로는 5분마다 Vercel 에서 이 저장소로 만든
+# 준비된 Preview 배포 중 가장 최근 것을 찾고, 고정 주소가 그 배포를 가리키지 않으면 옮긴다.
+# PR 이 여러 개 열려 있으면 마지막에 만든 배포가 보인다. 새 배포가 주소에 반영되기까지 최대 약 5분이 걸린다.
+# GitHub 의 예약 실행은 늦어질 수 있다. 바로 맞추려면 Actions 화면에서 이 워크플로를 수동으로 실행한다.
+# 고정 주소도 Vercel 인증 보호 안에 있다. Vercel 팀 계정으로 로그인해야 열린다.
+#
+# 이벤트(deployment_status)를 쓰지 않는 이유: 그 이벤트의 워크플로는 배포된 커밋의 파일로 실행된다.
+# 브랜치에서 고친 스크립트가 토큰을 받을 수 있고, 대기 중인 실행이 교체되면 가장 새 배포를 놓친다.
+# 예약 실행은 기본 브랜치의 파일로만 실행된다. 매 실행이 Vercel 의 현재 상태에서 다시 계산하므로
+# 실패하거나 건너뛴 실행이 있어도 다음 실행이 맞춘다.
+#
+# 필요한 설정:
+# - GitHub Environment preview-alias: 배포 브랜치를 main 하나로 제한한다. secret VERCEL_TOKEN 은 이 Environment 에만 둔다.
+#   (저장소 전체 secret 에 두지 않는다. 다른 브랜치의 워크플로가 읽을 수 없게 하기 위해서다.)
+# - VERCEL_TOKEN: 이 팀 범위의 Vercel 토큰. 만료되면 이 워크플로가 실패한다. 만료 전에 새로 만들어 바꾼다.
+# - vars.VERCEL_TEAM_ID, vars.VERCEL_PROJECT_ID: .vercel/project.json 의 orgId 와 projectId.
+# - DNS: preview.picnic.fan 의 CNAME 은 cname.vercel-dns.com 이다.
+# - 인증서: DNS 를 추가한 뒤 한 번 `vercel certs issue preview.picnic.fan` 을 실행한다. 인증서가 없으면
+#   Vercel 이 주소 연결을 HTTP 400 으로 거절한다.
+#
+# 알아 둘 점:
+# - 공개 저장소에서 60일 동안 활동이 없으면 GitHub 가 예약 워크플로를 끈다. 그때는 Actions 화면에서 다시 켠다.
+# - run 블록 안에는 표현식을 쓰지 않는다. 값은 env 로만 넘긴다.
+# - 동작 검사: __tests__/scripts/preview-alias-workflow.test.ts
+name: Preview 고정 주소
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions: {}
+
+# 한 번에 하나만 실행한다. 매 실행이 현재 상태에서 다시 계산하므로 교체된 대기 실행은 잃어도 된다.
+concurrency:
+  group: preview-alias
+  cancel-in-progress: false
+
+jobs:
+  alias:
+    name: preview.picnic.fan 맞추기
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment:
+      name: preview-alias
+      deployment: false
+    steps:
+      - name: 최신 Preview 배포로 주소 맞추기
+        env:
+          VERCEL_API: https://api.vercel.com
+          VERCEL_TOKEN: ${{ secrets.VERCEL_TOKEN }}
+          TEAM_ID: ${{ vars.VERCEL_TEAM_ID }}
+          PROJECT_ID: ${{ vars.VERCEL_PROJECT_ID }}
+          REPOSITORY: ${{ github.repository }}
+          ALIAS: preview.picnic.fan
+        run: |
+          set -euo pipefail
+
+          fail() { echo "::error::$1"; exit 1; }
+          skip() { echo "::notice::$1"; exit 0; }
+          lower() { printf '%s' "$1" | tr '[:upper:]' '[:lower:]'; }
+
+          [ -n "${VERCEL_TOKEN:-}" ] || fail 'Environment preview-alias 에 secret VERCEL_TOKEN 이 없습니다.'
+          [[ "${TEAM_ID:-}" =~ ^[A-Za-z0-9_]+$ ]] || fail 'vars.VERCEL_TEAM_ID 가 없거나 형식이 다릅니다.'
+          [[ "${PROJECT_ID:-}" =~ ^[A-Za-z0-9_]+$ ]] || fail 'vars.VERCEL_PROJECT_ID 가 없거나 형식이 다릅니다.'
+          [[ "${REPOSITORY:-}" =~ ^[A-Za-z0-9_.-]+/[A-Za-z0-9_.-]+$ ]] || fail '저장소 이름의 형식이 다릅니다.'
+          [[ "${ALIAS:-}" =~ ^[a-z0-9.-]+$ ]] || fail '고정 주소의 형식이 다릅니다.'
+
+          work="$(mktemp -d)"
+          trap 'rm -rf "$work"' EXIT
+
+          # call <METHOD> <path> [body]: HTTP 상태 코드를 출력하고 응답 본문을 $work/body.json 에 쓴다.
+          call() {
+            local method="$1" path="$2" body="${3:-}"
+            local args=(--silent --show-error --max-time 30 --request "$method"
+              --header "Authorization: Bearer ${VERCEL_TOKEN}"
+              --output "$work/body.json" --write-out '%{http_code}')
+            if [ -n "$body" ]; then
+              args+=(--header 'Content-Type: application/json' --data "$body")
+            fi
+            curl "${args[@]}" "${VERCEL_API}${path}"
+          }
+
+          # 1. 이 프로젝트에서 이 저장소의 커밋으로 만든 준비된 Preview 배포 중 가장 최근 것을 찾는다.
+          #    목록은 최근 것부터 온다. 한 페이지에 맞는 배포가 없으면 pagination.next 로 다음(더 옛) 페이지를 본다.
+          #    맞는 배포가 있는 첫 페이지에서 멈춘다. 그 뒤 페이지는 더 옛 배포뿐이다.
+          repo_lc="$(lower "$REPOSITORY")"
+          until_param=''
+          candidate=''
+          for page in 1 2 3 4 5 6 7 8 9 10; do
+            code=$(call GET "/v6/deployments?projectId=${PROJECT_ID}&teamId=${TEAM_ID}&target=preview&state=READY&limit=20${until_param}") \
+              || fail 'Vercel API 에 연결하지 못했습니다.'
+            [ "$code" = 200 ] || fail "Preview 배포 목록을 조회하지 못했습니다 (HTTP ${code}, ${page}쪽)."
+            candidate=$(jq -c --arg repo "$repo_lc" '
+              [ (.deployments // [])[]
+                | select((.target // "preview") != "production")
+                | select((.state // .readyState // "") == "READY")
+                | select((((.meta.githubCommitOrg // "") + "/" + (.meta.githubCommitRepo // "")) | ascii_downcase) == $repo)
+              ]
+              | sort_by(.created // .createdAt // 0)
+              | last // empty' "$work/body.json") || fail 'Preview 배포 목록을 읽지 못했습니다.'
+            [ -z "$candidate" ] || break
+            next=$(jq -r '.pagination.next // empty' "$work/body.json") || fail 'Preview 배포 목록을 읽지 못했습니다.'
+            [ -n "$next" ] || skip '이 저장소의 준비된 Preview 배포가 없습니다. 주소를 그대로 둡니다.'
+            [[ "$next" =~ ^[0-9]+$ ]] || fail '다음 페이지 표시의 형식이 다릅니다.'
+            until_param="&until=${next}"
+          done
+          [ -n "$candidate" ] || fail '최근 Preview 배포 10쪽 안에 이 저장소의 배포가 없습니다. 주소를 그대로 둡니다.'
+          id=$(printf '%s' "$candidate" | jq -r '.uid // .id // empty')
+          host=$(printf '%s' "$candidate" | jq -r '.url // empty')
+          [[ "$id" =~ ^dpl_[A-Za-z0-9]+$ ]] || fail '배포 ID 의 형식이 다릅니다.'
+          [[ "$host" =~ ^[a-z0-9-]+\.vercel\.app$ ]] || fail '배포 주소의 형식이 다릅니다.'
+
+          # 2. 고정 주소가 이미 그 배포를 가리키면 끝낸다. 다른 배포(옛 배포, 지워진 배포, 다른 프로젝트)를 가리키면 옮긴다.
+          code=$(call GET "/v4/aliases/${ALIAS}?teamId=${TEAM_ID}") || fail 'Vercel API 에 연결하지 못했습니다.'
+          case "$code" in
+            200)
+              current=$(jq -r '.deploymentId // empty' "$work/body.json") || fail '지금의 연결을 읽지 못했습니다.'
+              [ "$current" != "$id" ] || skip "${ALIAS} 은 이미 최신 Preview(${host})를 가리킵니다."
+              ;;
+            404) ;;
+            *) fail "지금의 연결을 조회하지 못했습니다 (HTTP ${code})." ;;
+          esac
+
+          # 3. 고정 주소를 그 배포로 옮긴다.
+          code=$(call POST "/v2/deployments/${id}/aliases?teamId=${TEAM_ID}" "{\"alias\":\"${ALIAS}\"}") \
+            || fail 'Vercel API 에 연결하지 못했습니다.'
+          if [ "$code" != 200 ]; then
+            reason=$(jq -r '.error.code // "unknown"' "$work/body.json" 2>/dev/null || echo unknown)
+            fail "주소를 옮기지 못했습니다 (HTTP ${code}, ${reason})."
+          fi
+
+          echo "${ALIAS} -> ${host}"
+          if [ -n "${GITHUB_STEP_SUMMARY:-}" ]; then
+            echo "\`${ALIAS}\` 이 \`${host}\` 을 가리킵니다." >> "$GITHUB_STEP_SUMMARY"
+          fi

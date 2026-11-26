@@ -1,6 +1,7 @@
 'use client';
 
 import React from 'react';
+import Link from 'next/link';
 import { VoteCard, VoteRankCard } from '..';
 import { VoteTimer } from '../common/VoteTimer';
 import { VoteSearch } from './VoteSearch';
@@ -85,6 +86,28 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
           </div>
         </div>
       </div>
+
+      {rewards.length > 0 && (
+        <section aria-labelledby="vote-rewards-title" className="mb-4 px-4">
+          <h2 id="vote-rewards-title" className="mb-1 text-sm font-semibold text-gray-700">{t('label_vote_reward_list')}</h2>
+          <ul className="flex gap-2 overflow-x-auto p-1">
+            {rewards.map((reward) => (
+              <li key={reward.id} className="max-w-full shrink-0">
+                <Link
+                  href={`/${currentLanguage}/rewards/${reward.id}`}
+                  prefetch={false}
+                  className="flex items-center gap-2 rounded-lg border border-secondary-200 bg-secondary-50/80 px-3 py-2 text-sm font-medium text-gray-900 hover:shadow-md focus-visible:outline-primary-500"
+                >
+                  {reward.thumbnail && (
+                    <OptimizedImage src={reward.thumbnail} alt="" width={24} height={24} className="h-6 w-6 shrink-0 rounded object-cover" />
+                  )}
+                  <span className="truncate">{getLocalizedString(reward.title, currentLanguage) || t('reward')}</span>
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
 
       <div className="px-4 mb-4">
         <VoteSearch onSearch={handleSearch} placeholder={t('text_hint_search')} totalItems={rankedVoteItems.length} searchResults={filteredItems} disabled={!canVote} />
@@ -199,19 +222,6 @@ export function VoteDetailPresenter(props: VoteDetailPresenterProps) {
       )}
 
       <VoteNotifications notifications={notifications} onRemove={removeNotification} />
-
-      {rewards.length > 0 && (
-        <section className="px-4 pb-8">
-          <h2 className="text-xl font-semibold mb-4">🎁 {t('label_vote_reward_list')}</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-            {rewards.map((reward, index) => (
-              <div key={reward.id || index} className="border rounded-lg p-4">
-                <p>{t('reward')} #{index + 1}</p>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
 
       {process.env.NODE_ENV === 'development' && (
         <div className="fixed bottom-4 right-4 bg-black bg-opacity-90 text-white p-4 rounded-lg text-xs max-w-sm space-y-3">
