@@ -173,7 +173,7 @@ export function PortOneHostedCheckout({ userId, productId, resumeOrderId, langua
   return (
     <Dialog isOpen onClose={() => { if (!inFlight.current) onClose(); }} title="PortOne" size="md">
       <Dialog.Content className="space-y-4">
-        {!quote && !resumeOrderId && productId && (
+        {!quote && !resumeOrderId && productId && outcome !== 'REFUNDED' && (
           <form onSubmit={start} className="space-y-4">
             <label className="flex items-start gap-2 text-sm">
               <input type="checkbox" checked={consent} onChange={event => setConsent(event.target.checked)} disabled={busy} className="mt-1" />

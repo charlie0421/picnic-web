@@ -200,6 +200,28 @@ describe('star-candy PortOne purchase for a regular customer', () => {
     expect(orders).toHaveLength(2);
     expect(orders[0].body.requestId).not.toBe(orders[1].body.requestId);
   });
+  it('shows the refund result without a new checkout form after refreshing a pending payment', async () => {
+    flags(true, true);
+    const calls = server({ lookup: () => json({ state: 'REFUNDED', orderId: ORDER }) });
+    const buy = await renderPresenter();
+    await waitFor(() => expect(buy.disabled).toBe(false));
+    fireEvent.click(buy);
+    fireEvent.click(await screen.findByRole('checkbox'));
+    await act(async () => { fireEvent.click(screen.getByRole('button', { name: 'confirm_payment' })); });
+    (window as any).PortOne.requestPayment.mockResolvedValue({ paymentId: PAYMENT, txId: 'tx-hosted', paymentToken: 'private-token' });
+    await act(async () => { fireEvent.click(await screen.findByRole('button', { name: '결제창 열기' })); });
+    expect(await screen.findByText('label_payment_pending')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'label_payment_status' }));
+    expect(await screen.findByText(/환불이 완료되었습니다/)).toBeTruthy();
+    expect(screen.queryByRole('checkbox')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'confirm_payment' })).toBeNull();
+    expect(calls.filter(call => call.url === '/api/payment/orders')).toHaveLength(1);
+
+    fireEvent.click(screen.getByRole('button', { name: 'dismiss-dialog' }));
+    fireEvent.click(buy);
+    expect(await screen.findByRole('checkbox')).toHaveProperty('checked', false);
+  });
   it.each([
     ['REFUNDED', /환불이 완료되었습니다/, 200], ['REFUND_PENDING', /환불을 처리하고/, 200], ['BLOCKED', /확인이 필요합니다/, 409],
     ['AWAITING_DEPOSIT', /가상계좌 입금을 기다리고/, 200], ['FAILED', /결제가 완료되지 않았습니다/, 200],
