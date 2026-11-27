@@ -2,7 +2,8 @@ import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { DEFAULT_LANGUAGE, SUPPORTED_LANGUAGES } from "./config/settings";
 import { createServerClient, type CookieOptions } from '@supabase/ssr';
-import { STATIC_ASSET_PATH, decideLocaleRoute } from './lib/i18n/locale-routing';
+import { STATIC_ASSET_PATH, decideLocaleRoute, resolvePreferredLanguage } from './lib/i18n/locale-routing';
+import { chartHostPath } from './lib/charts/contract';
 
 function isLoginPath(pathname: string): boolean {
   // /login, /ko/login, /en/login 등
@@ -23,6 +24,36 @@ function buildForwardedRequestHeaders(req: NextRequest): Headers {
 }
 
 export async function middleware(req: NextRequest) {
+  const host = req.headers.get('host');
+  if (host?.toLowerCase() === 'chart.picnic.fan') {
+    const path = req.nextUrl.pathname;
+    const preferred = resolvePreferredLanguage({
+      referer: req.headers.get('referer'), host, cookieLocale: req.cookies.get('locale')?.value ?? null,
+      acceptLanguage: req.headers.get('accept-language'),
+    });
+    const chartPath = chartHostPath(host, path, preferred);
+    if (chartPath || /^\/charts(?:\/(?:business|artists))?\/?$/.test(path)) {
+      const target = new URL('https://chart.picnic.fan');
+      target.pathname = chartPath ?? `/${preferred}${path}`;
+      target.search = req.nextUrl.search;
+      const res = NextResponse.redirect(target, 307);
+      res.headers.set('Cache-Control', 'private, no-store');
+      return res;
+    }
+    const chartRoute = /^\/([^/]+)\/charts(?:\/(?:business|artists))?\/?$/.exec(path);
+    if (chartRoute && (SUPPORTED_LANGUAGES as readonly string[]).includes(chartRoute[1])) {
+      return NextResponse.next({ request: { headers: buildForwardedRequestHeaders(req) } });
+    }
+    if (!STATIC_ASSET_PATH.test(path) && !path.startsWith('/api/') && !path.startsWith('/_next/')) {
+      if (req.method !== 'GET' && req.method !== 'HEAD') {
+        return new NextResponse(null, { status: 405, headers: { Allow: 'GET, HEAD' } });
+      }
+      const target = new URL('https://www.picnic.fan');
+      target.pathname = path;
+      target.search = req.nextUrl.search;
+      return NextResponse.redirect(target, 307);
+    }
+  }
   // 언어 접두어 판정을 맨 앞에 둔다(인앱 안내·Supabase·getClaims 보다 먼저).
   // 리다이렉트는 Supabase 가 쿠키를 쓰기 전에 나가므로 옮길 쿠키가 없고, 세션 갱신과 탈퇴 차단은
   // 목적지 요청에서 middleware 가 다시 돌 때 적용된다. 규칙은 lib/i18n/locale-routing.ts 에 있다.

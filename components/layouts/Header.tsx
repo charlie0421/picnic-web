@@ -13,6 +13,7 @@ import { DefaultAvatar, ProfileImageContainer } from '@/components/ui/ProfileIma
 import LanguageSelector from './LanguageSelector';
 import { Menu, Settings, Vote, Star, ChevronRight, Bell } from 'lucide-react';
 import { NotificationInboxService } from '@/lib/data-fetching/client/notification-service';
+import ChartMenuLink from '@/components/charts/ChartMenuLink';
 
 const Header: React.FC = () => {
   const pathname = usePathname();
@@ -130,6 +131,8 @@ const Header: React.FC = () => {
   const openMenuLabel = (t('common.menu.openMenu') || '').trim() || 'Open menu';
 
   const isAuthLoading = authLoading || !hasHydrated;
+  const onChartHost = hasHydrated && window.location.hostname === 'chart.picnic.fan';
+  const HomeLink = onChartHost ? 'a' : NavigationLink;
 
   const renderProfileIcon = () => (
     isAuthLoading ? (
@@ -144,12 +147,14 @@ const Header: React.FC = () => {
       <div className='container mx-auto px-2 sm:px-4 py-2'>
         <div className='flex items-center justify-between w-full gap-2 sm:gap-4'>
           <div className='flex items-center gap-2 sm:gap-4 flex-1 min-w-0'>
-            <NavigationLink href="/" className='flex items-center flex-shrink-0'>
+            <HomeLink href={onChartHost ? `https://www.picnic.fan${getLocalizedPath('/')}` : '/'} className='flex items-center flex-shrink-0'>
               <Image src='/images/logo.webp' alt='logo' width={40} height={40} priority className='w-8 h-8 sm:w-10 sm:h-10 rounded-lg' />
-            </NavigationLink>
+            </HomeLink>
             <span className='flex-shrink-0 inline-flex items-center rounded-md bg-orange-500 px-1.5 py-0.5 text-[10px] sm:text-xs font-extrabold uppercase tracking-wider text-white'>
               Beta
             </span>
+            {/* 대시보드 진입 링크는 관리자 계정에만 보인다. 대시보드 주소 자체는 막지 않는다. */}
+            {isAdmin && <ChartMenuLink />}
             {portalMenuItems.length > 1 && (
             <div className='flex-1 relative'>
   <div ref={menuContainerRef} className='overflow-x-auto scrollbar-hide scroll-smooth'>

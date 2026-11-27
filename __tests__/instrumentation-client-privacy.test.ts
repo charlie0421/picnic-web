@@ -15,6 +15,17 @@ beforeEach(() => {
 async function options() { await import('@/instrumentation-client'); return init.mock.calls[0][0]; }
 
 describe('browser Sentry URL privacy', () => {
+  it('does not initialize tracking on a business intake document', async () => {
+    window.history.replaceState(null, '', '/ko/charts/business');
+    try {
+      const { onRouterTransitionStart } = await import('@/instrumentation-client');
+      expect(init).not.toHaveBeenCalled();
+      const Sentry = await import('@sentry/nextjs');
+      vi.mocked(Sentry.captureRouterTransitionStart).mockClear();
+      onRouterTransitionStart('/en/charts/business', 'push');
+      expect(Sentry.captureRouterTransitionStart).not.toHaveBeenCalled();
+    } finally { window.history.replaceState(null, '', '/'); }
+  });
   it('closes Replay before the Sentry router hook observes navigation', async () => {
     const { replaySignals } = await import('@/lib/sentry/replay/signals');
     const Sentry = await import('@sentry/nextjs');

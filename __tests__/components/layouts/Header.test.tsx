@@ -119,6 +119,20 @@ describe('Header', () => {
     expect(screen.queryByText('MYPAGE')).toBeNull();
   });
 
+  it('관리자가 아니면 대시보드 링크를 표시하지 않는다', () => {
+    render(<Header />);
+    expect(screen.queryByRole('link', { name: /KPOP 대시보드/ })).toBeNull();
+    expect(screen.getByText('Beta').nextElementSibling?.tagName).not.toBe('A');
+  });
+
+  it('관리자에게는 단일 포털에서도 Beta 옆에 대시보드 링크를 표시한다', () => {
+    mockUseMenu.mockReturnValue({ isAdmin: true, portalMenuItems: singlePortal, activePortal: null });
+    render(<Header />);
+    const link = screen.getByRole('link', { name: /KPOP 대시보드/ });
+    expect(link).toHaveAttribute('href', '/ko/charts');
+    expect(screen.getByText('Beta').nextElementSibling).toBe(link);
+  });
+
   it('renders language selector', () => {
     render(<Header />);
     expect(screen.getByTestId('language-selector')).toBeInTheDocument();

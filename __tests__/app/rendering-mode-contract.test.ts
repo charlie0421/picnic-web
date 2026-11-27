@@ -50,8 +50,8 @@ describe('렌더링 모드 계약 (소스 선언)', () => {
   });
 
   // 루트 레이아웃이 pass-through 라 app/ 바로 아래의 페이지는 <html> 을 주는 레이아웃이 없다.
-  it('모든 페이지는 [lang] 또는 (bare) 아래에 있다', () => {
-    expect(pageFiles.filter((file) => !file.startsWith('[lang]/') && !file.startsWith('(bare)/'))).toEqual([]);
+  it('모든 페이지는 문서 뼈대를 제공하는 경로 아래에 있다', () => {
+    expect(pageFiles.filter((file) => !file.startsWith('[lang]/') && !file.startsWith('(bare)/') && !file.startsWith('(business)/[lang]/'))).toEqual([]);
   });
 
   it.each(Object.entries(MODES))('%s', (file, mode) => {

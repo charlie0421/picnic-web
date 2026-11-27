@@ -36,9 +36,12 @@ const SERVER_USER = /await getServerUser\(\)/;
 const PROPS_SEARCH_PARAMS = /await props\.searchParams/;
 
 const MODES = {
+  '(business)/[lang]/charts/business/page.tsx': { kind: 'force-dynamic' },
   // ── app/[lang] ─────────────────────────────────────────────────────────────
   '[lang]/page.tsx': { kind: 'redirect' },
   '[lang]/(auth)/login/page.tsx': { kind: 'static-shell' },
+  '(business)/[lang]/charts/artists/page.tsx': { kind: 'force-dynamic' },
+  '[lang]/(main)/charts/page.tsx': { kind: 'isr', revalidate: 3600 },
   '[lang]/(main)/concert2025/page.tsx': { kind: 'force-static', revalidate: 86400 },
   '[lang]/(main)/media/page.tsx': { kind: 'force-dynamic' },
   '[lang]/(main)/privacy/page.tsx': { kind: 'force-dynamic' },

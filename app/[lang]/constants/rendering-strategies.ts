@@ -34,6 +34,8 @@ export const PAGE_RENDERING_STRATEGIES = {
   
   // 메인 컨텐츠 페이지
   '/media': RenderingStrategy.STREAMING,
+  '/charts': RenderingStrategy.ISR,
+  '/charts/business': RenderingStrategy.DYNAMIC,
   '/vote': RenderingStrategy.CLIENT,
   '/vote/[id]': RenderingStrategy.DYNAMIC,
   '/rewards': RenderingStrategy.CLIENT,
@@ -101,4 +103,4 @@ export const CACHING_RECOMMENDATIONS = {
     maxAge: 86400, // 1일
     immutable: true
   }
-}; 
+};
